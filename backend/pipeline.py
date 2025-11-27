@@ -35,18 +35,15 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "base")
 
-# Paths from .env
+
 AUDIO_PATH = Path(os.getenv("AUDIO_PATH", "./data/audio"))
 CHROMA_PATH = Path(os.getenv("CHROMA_PATH", "./data/chroma_db"))
 TRANSCRIPT_PATH = Path(os.getenv("TRANSCRIPT_PATH", "./data/transcriptions"))
 
-# Create directories
+
 for path in [AUDIO_PATH, CHROMA_PATH, TRANSCRIPT_PATH]:
     path.mkdir(parents=True, exist_ok=True)
 
-# =============================================================================
-# DEPENDENCY IMPORTS
-# =============================================================================
 
 print("[VectorPlex V2] Loading dependencies...")
 
