@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VectorPlex V2 - AI Video Intelligence | Algolix AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation">
+        <div class="bg-gradient"></div>
+        <div class="bg-grid"></div>
+        <div class="floating-orbs">
+            <div class="orb orb-1"></div>
+            <div class="orb orb-2"></div>
+            <div class="orb orb-3"></div>
+            <div class="orb orb-4"></div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <div class="logo-icon">
+                    
+                        <defs>
+                            <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#6366f1"/>
+                                <stop offset="50%" style="stop-color:#8b5cf6"/>
+                                <stop offset="100%" style="stop-color:#d946ef"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M20 2L35 10V30L20 38L5 30V10L20 2Z" stroke="url(#logoGradient)" stroke-width="2" fill="none"/>
+                        <path d="M20 8L28 12.5V21.5L20 26L12 21.5V12.5L20 8Z" fill="url(#logoGradient)"/>
+                        <circle cx="20" cy="17" r="3" fill="white"/>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <span class="logo-main">VectorPlex</span>
+                    <span class="logo-sub">by Algolix AI</span>
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#how-it-works" class="nav-link">How It Works</a>
+                <a href="#demo" class="nav-link">Demo</a>
+                <a href="#tech" class="nav-link">Tech Stack</a>
+            </div>
+            <div class="nav-actions">
+                <a href="https://github.com/sangamgautam1111/VectorPlex-V2-DEMO" target="_blank" class="btn btn-ghost">
+                    <i class="fab fa-github"></i>
+                    <span>GitHub</span>
+                </a>
+                <a href="#demo" class="btn btn-primary">
+                    <span>Try Now</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu" id="mobileMenu">
+        <div class="mobile-menu-content">
+            <a href="#features" class="mobile-nav-link">Features</a>
+            <a href="#how-it-works" class="mobile-nav-link">How It Works</a>
+            <a href="#demo" class="mobile-nav-link">Demo</a>
+            <a href="#tech" class="mobile-nav-link">Tech Stack</a>
+            <a href="https://github.com/sangamgautam1111/VectorPlex-V2-DEMO" target="_blank" class="btn btn-ghost">
+                <i class="fab fa-github"></i> GitHub
+            </a>
+        </div>
+    </div>
+
+       <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <!-- Left Side: Text Content -->
+            <div class="hero-content-left">
+                
+                <h1 class="hero-title">
+                    <span class="title-line">Transform Videos into</span>
+                    <span class="title-gradient">Conversational Knowledge</span>
+                </h1>
+                <p class="hero-description">
+                    Upload any video and chat with AI about its content. Powered by 
+                    <strong>Whisper AI</strong> for transcription, <strong>ChromaDB</strong> for 
+                    vector storage, and <strong>Groq</strong> for lightning-fast responses.
+                </p>
+                <div class="hero-actions">
+                    <a href="#demo" class="btn btn-primary btn-lg">
+                        <i class="fas fa-play"></i>
+                        <span>Start Chatting</span>
+                    </a>
+                    <a href="#how-it-works" class="btn btn-outline btn-lg">
+                        <span>Learn More</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Right Side: Visual -->
+            <div class="hero-visual">
+                <div class="visual-card">
+                    <div class="card-header">
+                        <div class="card-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <span class="card-title">VectorPlex Chat</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="chat-preview">
+                            <div class="chat-message user">
+                                <span>What are the main topics in this video?</span>
+                            </div>
+                            <div class="chat-message ai">
+                                <div class="ai-avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <div class="ai-content">
+                                    <span class="typing-indicator">
+                                        <span></span><span></span><span></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="section-container">
+            <div class="section-header">
+                <span class="section-badge">Features</span>
+                <h2 class="section-title">Everything You Need</h2>
+                <p class="section-description">
+                    Powerful features designed to extract maximum value from your video content
+                </p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-microphone-alt"></i>
+                    </div>
+                    <h3>AI Transcription</h3>
+                    <p>OpenAI Whisper provides state-of-the-art speech recognition with support for 99+ languages.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <h3>Vector Search</h3>
+                    <p>ChromaDB enables semantic search through video content using advanced embeddings.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3>Lightning Fast</h3>
+                    <p>Groq's LPU inference engine delivers responses in milliseconds, not seconds.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h3>Natural Chat</h3>
+                    <p>Ask questions naturally and get contextual answers from your video content.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3>Timestamp Links</h3>
+                    <p>Get precise timestamps to jump directly to relevant video sections.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Private & Secure</h3>
+                    <p>Your data stays on your infrastructure. No external data sharing.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="section-container">
+            <div class="section-header">
+                <span class="section-badge">Process</span>
+                <h2 class="section-title">How It Works</h2>
+                <p class="section-description">
+                    Three simple steps to unlock your video's potential
+                </p>
+            </div>
+            <div class="steps-container">
+                <div class="step">
+                    <div class="step-number">01</div>
+                    <div class="step-content">
+                        <div class="step-icon">
+                            <i class="fas fa-link"></i>
+                        </div>
+                        <h3>Paste Video URL</h3>
+                        <p>Simply paste any MP4 video link or YouTube URL. We handle the rest.</p>
+                    </div>
+                    <div class="step-visual">
+                        <div class="url-input-preview">
+                            <i class="fas fa-video"></i>
+                            <span>https://example.com/video.mp4</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">02</div>
+                    <div class="step-content">
+                        <div class="step-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <h3>AI Processing</h3>
+                        <p>Whisper transcribes, embeddings are created, and vectors are stored in ChromaDB.</p>
+                    </div>
+                    <div class="step-visual">
+                        <div class="processing-preview">
+                            <div class="process-item"><i class="fas fa-wave-square"></i> Transcribing</div>
+                            <div class="process-item"><i class="fas fa-brain"></i> Embedding</div>
+                            <div class="process-item"><i class="fas fa-database"></i> Storing</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">03</div>
+                    <div class="step-content">
+                        <div class="step-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h3>Start Chatting</h3>
+                        <p>Ask any question and get instant, accurate answers powered by Groq.</p>
+                    </div>
+                    <div class="step-visual">
+                        <div class="chat-preview-small">
+                            <div class="mini-message">Summarize this video</div>
+                            <div class="mini-response">The video covers 3 main topics...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Section -->
+    <section class="demo-section" id="demo">
+        <div class="section-container">
+            <div class="section-header">
+                <span class="section-badge">Try It</span>
+                <h2 class="section-title">Experience VectorPlex</h2>
+                <p class="section-description">
+                    Paste a video URL below and start chatting with AI about its content
+                </p>
+            </div>
+            <div class="demo-container">
+                <div class="demo-card">
+                    <div class="demo-input-section">
+                        <div class="input-wrapper">
+                            <div class="input-icon">
+                                <i class="fas fa-link"></i>
+                            </div>
+                            <input 
+                                type="url" 
+                                id="videoUrl" 
+                                class="video-input" 
+                                placeholder="Paste your video URL here (MP4, YouTube, etc.)"
+                                autocomplete="off"
+                            >
+                            <button class="clear-input" id="clearInput" style="display: none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-primary btn-lg process-btn" id="processBtn">
+                            <span class="btn-text">Process Video</span>
+                            <span class="btn-loader" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                Processing...
+                            </span>
+                            <i class="fas fa-arrow-right btn-icon"></i>
+                        </button>
+                    </div>
+                    <div class="demo-examples">
+                        <span class="examples-label">Try these examples:</span>
+                        <div class="example-chips">
+                            <button class="example-chip" data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+                                <i class="fas fa-laptop-code"></i>
+                                Tech Talk
+                            </button>
+                            <button class="example-chip" data-url="https://www.youtube.com/watch?v=example2">
+                                <i class="fas fa-graduation-cap"></i>
+                                Tutorial
+                            </button>
+                            <button class="example-chip" data-url="https://www.youtube.com/watch?v=example3">
+                                <i class="fas fa-podcast"></i>
+                                Podcast
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Stack Section -->
+    <section class="tech-stack" id="tech">
+        <div class="section-container">
+            <div class="section-header">
+                <span class="section-badge">Technology</span>
+                <h2 class="section-title">Powered By The Best</h2>
+                <p class="section-description">
+                    Built with cutting-edge AI technologies for maximum performance
+                </p>
+            </div>
+            <div class="tech-grid">
+                <div class="tech-card">
+                    <div class="tech-logo">
+                        <div class="tech-logo-fallback">
+                            <i class="fas fa-microphone-alt"></i>
+                        </div>
+                    </div>
+                    <h3>OpenAI Whisper</h3>
+                    <p>State-of-the-art speech recognition with multi-language support</p>
+                    <div class="tech-tags">
+                        <span>ASR</span>
+                        <span>99+ Languages</span>
+                    </div>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-logo">
+                        <div class="tech-logo-fallback">
+                            <i class="fas fa-database"></i>
+                        </div>
+                    </div>
+                    <h3>ChromaDB</h3>
+                    <p>Open-source vector database for AI-native applications</p>
+                    <div class="tech-tags">
+                        <span>Vector DB</span>
+                        <span>Embeddings</span>
+                    </div>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-logo">
+                        <div class="tech-logo-fallback">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                    </div>
+                    <h3>Groq</h3>
+                    <p>Ultra-fast LLM inference with LPU technology</p>
+                    <div class="tech-tags">
+                        <span>LPU</span>
+                        <span>Fast Inference</span>
+                    </div>
+                </div>
+                <div class="tech-card">
+                    <div class="tech-logo">
+                        <div class="tech-logo-fallback">
+                            <i class="fab fa-python"></i>
+                        </div>
+                    </div>
+                    <h3>Flask</h3>
+                    <p>Lightweight Python web framework for the backend</p>
+                    <div class="tech-tags">
+                        <span>Backend</span>
+                        <span>REST API</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <div class="logo-icon">
+                            
+                                <defs>
+                                    <linearGradient id="logoGradientFooter" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#6366f1"/>
+                                        <stop offset="50%" style="stop-color:#8b5cf6"/>
+                                        <stop offset="100%" style="stop-color:#d946ef"/>
+                                    </linearGradient>
+                                </defs>
+                                <path d="M20 2L35 10V30L20 38L5 30V10L20 2Z" stroke="url(#logoGradientFooter)" stroke-width="2" fill="none"/>
+                                <path d="M20 8L28 12.5V21.5L20 26L12 21.5V12.5L20 8Z" fill="url(#logoGradientFooter)"/>
+                                <circle cx="20" cy="17" r="3" fill="white"/>
+                            </svg>
+                        </div>
+                        <div class="logo-text">
+                            <span class="logo-main">VectorPlex</span>
+                            <span class="logo-sub">by Algolix AI</span>
+                        </div>
+                    </div>
+                    <p class="footer-description">
+                        Transforming video content into conversational knowledge with AI.
+                    </p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Product</h4>
+                        <a href="#features">Features</a>
+                        <a href="#how-it-works">How It Works</a>
+                        <a href="#demo">Demo</a>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Technology</h4>
+                        <a href="#">Whisper AI</a>
+                        <a href="#">ChromaDB</a>
+                        <a href="#">Groq</a>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Connect</h4>
+                        <a href="https://github.com/sangamgautam1111/VectorPlex-V2-DEMO" target="_blank">
+                            <i class="fab fa-github"></i> GitHub
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Algolix AI. DEMO VERSION OF VECTORPLEX <i class="fas fa-heart" style="color: #ef4444;"></i></p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Game-like Loading Popup -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-popup">
+            <div class="loading-header">
+                <div class="loading-logo">
+                    <svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="loadingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#6366f1"/>
+                                <stop offset="50%" style="stop-color:#8b5cf6"/>
+                                <stop offset="100%" style="stop-color:#d946ef"/>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="30" cy="30" r="28" stroke="url(#loadingGradient)" stroke-width="2" fill="none" class="pulse-ring"/>
+                        <path d="M30 8L45 18V42L30 52L15 42V18L30 8Z" stroke="url(#loadingGradient)" stroke-width="2" fill="none"/>
+                        <path d="M30 16L38 21V31L30 36L22 31V21L30 16Z" fill="url(#loadingGradient)"/>
+                        <circle cx="30" cy="26" r="4" fill="white"/>
+                    </svg>
+                </div>
+                <h2>Processing Your Video</h2>
+                <p class="loading-subtitle" id="loadingSubtitle">Initializing AI systems...</p>
+            </div>
+            
+            <div class="loading-progress-container">
+                <div class="loading-progress-bar">
+                    <div class="loading-progress-fill" id="loadingProgressFill"></div>
+                </div>
+                <div class="loading-percentage" id="loadingPercentage">0%</div>
+            </div>
+
+            <div class="loading-steps">
+                <div class="loading-step" id="stepDownload">
+                    <div class="step-icon">
+                        <i class="fas fa-download"></i>
+                    </div>
+                    <div class="step-info">
+                        <span class="step-name">Download Video</span>
+                        <span class="step-status">Waiting...</span>
+                    </div>
+                </div>
+                <div class="loading-step" id="stepTranscribe">
+                    <div class="step-icon">
+                        <i class="fas fa-microphone"></i>
+                    </div>
+                    <div class="step-info">
+                        <span class="step-name">Transcribe Audio</span>
+                        <span class="step-status">Waiting...</span>
+                    </div>
+                </div>
+                <div class="loading-step" id="stepEmbed">
+                    <div class="step-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <div class="step-info">
+                        <span class="step-name">Generate Embeddings</span>
+                        <span class="step-status">Waiting...</span>
+                    </div>
+                </div>
+                <div class="loading-step" id="stepReady">
+                    <div class="step-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="step-info">
+                        <span class="step-name">Ready to Chat</span>
+                        <span class="step-status">Waiting...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="loading-tips">
+                <i class="fas fa-lightbulb"></i>
+                <span id="loadingTip">Did you know? VectorPlex can process videos in 99+ languages!</span>
+            </div>
+
+            <button class="loading-cancel-btn" id="cancelLoadingBtn">
+                <i class="fas fa-times"></i>
+                Cancel
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

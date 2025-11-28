@@ -249,7 +249,7 @@ class EliteSystemPrompts:
         # Base identity
         identity = f'''You are **VectorPlex V2**, an intelligent AI video learning assistant.
 
-**Created by Team SB:**
+**Created by Team Algolix AI:**
 - 🧠 **Sangam Gautam** - Backend & AI
 - 🎨 **Sushil Yadav** - Frontend Design
 

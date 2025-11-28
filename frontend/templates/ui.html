@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - VectorPlex | Algolix AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+</head>
+<body>
+    <div class="chat-app">
+        <!-- Minimal Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="logo-link">
+                    <span class="logo-text">VectorPlex</span>
+                </a>
+                <button class="new-chat-btn" onclick="window.location.href='/'">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-content">
+                <!-- Video Info -->
+                <div class="video-info">
+                    <div class="video-icon">
+                        <i class="fas fa-video"></i>
+                    </div>
+                    <div class="video-details">
+                        <span class="video-title">{{ chat_data.video_title }}</span>
+                        <span class="session-id">{{ session_id[:8] }}...</span>
+                    </div>
+                </div>
+
+                <!-- Quick Prompts -->
+                <div class="quick-prompts">
+                    <h4>Quick Prompts</h4>
+                    <button class="prompt-btn" data-prompt="Summarize this video">
+                        <i class="fas fa-align-left"></i> Summary
+                    </button>
+                    <button class="prompt-btn" data-prompt="What are the main topics?">
+                        <i class="fas fa-list"></i> Topics
+                    </button>
+                    <button class="prompt-btn" data-prompt="Key timestamps">
+                        <i class="fas fa-clock"></i> Timestamps
+                    </button>
+                    <button class="prompt-btn" data-prompt="Key takeaways">
+                        <i class="fas fa-lightbulb"></i> Takeaways
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="sidebar-btn" id="exportBtn" title="Export Chat">
+                    <i class="fas fa-download"></i>
+                </button>
+                <button class="sidebar-btn danger" id="leaveChatBtn" title="Leave Chat">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-main">
+            <!-- Chat Header -->
+            <header class="chat-header">
+                <div class="header-left">
+                    <button class="menu-toggle" id="menuToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="header-info">
+                        <h1>VectorPlex Chat</h1>
+                        <span class="ai-status">
+                            <span class="status-dot"></span>
+                            Powered by Groq
+                        </span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="header-btn" id="voiceModeBtn" title="Voice Mode">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button class="header-btn" id="themeToggle" title="Toggle Theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <a href="/" class="header-btn" title="Home">
+                        <i class="fas fa-home"></i>
+                    </a>
+                </div>
+            </header>
+
+            <!-- Chat Messages -->
+            <div class="chat-messages-wrapper">
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Welcome Screen -->
+                    <div class="welcome-screen" id="welcomeScreen">
+                        <div class="welcome-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h2>Ready to Chat</h2>
+                        <p>Your video has been processed. Ask me anything about its content!</p>
+                        <div class="welcome-suggestions">
+                            <button class="suggestion-btn" data-prompt="What is this video about?">
+                                <i class="fas fa-question"></i> What's it about?
+                            </button>
+                            <button class="suggestion-btn" data-prompt="Give me a summary">
+                                <i class="fas fa-file-alt"></i> Summary
+                            </button>
+                            <button class="suggestion-btn" data-prompt="Key highlights">
+                                <i class="fas fa-star"></i> Highlights
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="Ask anything about your video..."
+                        rows="1"
+                    ></textarea>
+                    <div class="input-actions">
+                        <button class="voice-input-btn" id="voiceInputBtn" title="Voice Input">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <button class="send-btn" id="sendBtn" title="Send">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-hints">
+                    <span><kbd>Enter</kbd> to send</span>
+                    <span><kbd>Shift+Enter</kbd> new line</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Voice Mode Modal -->
+    <div class="modal" id="voiceModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content voice-modal">
+            <div class="voice-modal-header">
+                <h3><i class="fas fa-microphone"></i> Voice Mode</h3>
+                <button class="modal-close" id="closeVoiceModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="voice-modal-body">
+                <div class="voice-visualizer" id="voiceVisualizer">
+                    <div class="voice-circle">
+                        <i class="fas fa-microphone"></i>
+                    </div>
+                    <div class="voice-waves">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
+                <p class="voice-status" id="voiceStatus">Click to start speaking</p>
+                <div class="voice-transcript" id="voiceTranscript"></div>
+            </div>
+            <div class="voice-modal-footer">
+                <button class="voice-action-btn" id="startVoiceBtn">
+                    <i class="fas fa-microphone"></i> Start Listening
+                </button>
+                <button class="voice-action-btn secondary" id="sendVoiceBtn" disabled>
+                    <i class="fas fa-paper-plane"></i> Send Message
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Chat Confirmation Modal -->
+    <div class="modal" id="leaveModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content confirm-modal">
+            <div class="confirm-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3>Leave Chat?</h3>
+            <p>This will delete all session data including the processed video. This action cannot be undone.</p>
+            <div class="confirm-actions">
+                <button class="btn-secondary" id="cancelLeaveBtn">Cancel</button>
+                <button class="btn-danger" id="confirmLeaveBtn">
+                    <i class="fas fa-sign-out-alt"></i> Leave & Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal" id="exportModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-download"></i> Export Chat</h3>
+                <button class="modal-close" id="closeExportModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="export-options">
+                <button class="export-option" data-format="txt">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Plain Text</span>
+                </button>
+                <button class="export-option" data-format="md">
+                    <i class="fab fa-markdown"></i>
+                    <span>Markdown</span>
+                </button>
+                <button class="export-option" data-format="json">
+                    <i class="fas fa-code"></i>
+                    <span>JSON</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Blue Ray Effect -->
+    <div class="blue-ray-effect" id="blueRayEffect"></div>
+    
+    <!-- Yellow Ray Effect -->
+    <div class="yellow-ray-effect" id="yellowRayEffect"></div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Audio for effects -->
+    <audio id="swooshSound" preload="auto">
+        <source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYNJmPJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/+0DEAAACkAFeAAAAAgAALCAAAAQSIYxjGdBDGMY0yJYxjGMYxoY0MYxjGMaGNDGMYxjGhjQxjGMYxoY0MYxjGMaGNDGMYxjGMaGM" type="audio/mpeg">
+    </audio>
+
+    <!-- Session Data -->
+    <script>
+        window.SESSION_ID = "{{ session_id }}";
+        window.VIDEO_URL = "{{ chat_data.video_url }}";
+        window.VIDEO_TITLE = "{{ chat_data.video_title }}";
+    </script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
