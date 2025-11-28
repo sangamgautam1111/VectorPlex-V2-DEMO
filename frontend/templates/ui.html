@@ -9,56 +9,577 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        /* ============================================
+           FLOATING AVATAR STYLES
+           ============================================ */
+        
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+            min-height: 60vh;
+        }
+
+        .welcome-avatar {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin-bottom: 30px;
+            animation: floatAvatar 4s ease-in-out infinite;
+        }
+
+        /* Main floating animation */
+        @keyframes floatAvatar {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            25% {
+                transform: translateY(-15px) rotate(2deg);
+            }
+            50% {
+                transform: translateY(-25px) rotate(0deg);
+            }
+            75% {
+                transform: translateY(-15px) rotate(-2deg);
+            }
+        }
+
+        /* Glowing background effect */
+        .avatar-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, rgba(99, 102, 241, 0) 70%);
+            border-radius: 50%;
+            animation: pulseGlow 3s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.6;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.3);
+                opacity: 0.3;
+            }
+        }
+
+        /* Secondary glow layer */
+        .avatar-glow::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: pulseGlow2 4s ease-in-out infinite 0.5s;
+        }
+
+        @keyframes pulseGlow2 {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.4;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.4);
+                opacity: 0.1;
+            }
+        }
+
+        /* Avatar inner container */
+        .avatar-inner {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            overflow: hidden;
+            margin: 15px auto;
+            z-index: 2;
+            box-shadow: 
+                0 0 30px rgba(99, 102, 241, 0.5),
+                0 0 60px rgba(99, 102, 241, 0.3),
+                0 10px 40px rgba(0, 0, 0, 0.3),
+                inset 0 -5px 20px rgba(0, 0, 0, 0.2);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            animation: borderGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes borderGlow {
+            0%, 100% {
+                border-color: rgba(99, 102, 241, 0.5);
+                box-shadow: 
+                    0 0 30px rgba(99, 102, 241, 0.5),
+                    0 0 60px rgba(99, 102, 241, 0.3),
+                    0 10px 40px rgba(0, 0, 0, 0.3);
+            }
+            50% {
+                border-color: rgba(139, 92, 246, 0.8);
+                box-shadow: 
+                    0 0 40px rgba(139, 92, 246, 0.6),
+                    0 0 80px rgba(139, 92, 246, 0.4),
+                    0 15px 50px rgba(0, 0, 0, 0.4);
+            }
+        }
+
+        .avatar-inner img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .welcome-avatar:hover .avatar-inner img {
+            transform: scale(1.1);
+        }
+
+        /* Orbiting rings */
+        .avatar-rings {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .avatar-rings span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 2px solid transparent;
+        }
+
+        .avatar-rings span:nth-child(1) {
+            width: 140px;
+            height: 140px;
+            border-top-color: rgba(99, 102, 241, 0.6);
+            border-right-color: rgba(99, 102, 241, 0.3);
+            animation: orbitRing1 3s linear infinite;
+        }
+
+        .avatar-rings span:nth-child(2) {
+            width: 160px;
+            height: 160px;
+            border-bottom-color: rgba(139, 92, 246, 0.5);
+            border-left-color: rgba(139, 92, 246, 0.2);
+            animation: orbitRing2 4s linear infinite reverse;
+        }
+
+        .avatar-rings span:nth-child(3) {
+            width: 180px;
+            height: 180px;
+            border-top-color: rgba(236, 72, 153, 0.4);
+            border-right-color: rgba(236, 72, 153, 0.2);
+            animation: orbitRing3 5s linear infinite;
+        }
+
+        @keyframes orbitRing1 {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        @keyframes orbitRing2 {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        @keyframes orbitRing3 {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* Floating particles */
+        .avatar-particles {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            z-index: 0;
+        }
+
+        .avatar-particles span {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            animation: floatParticle 4s ease-in-out infinite;
+        }
+
+        .avatar-particles span:nth-child(1) {
+            top: 10%;
+            left: 20%;
+            animation-delay: 0s;
+        }
+
+        .avatar-particles span:nth-child(2) {
+            top: 20%;
+            right: 15%;
+            animation-delay: 0.5s;
+            width: 4px;
+            height: 4px;
+        }
+
+        .avatar-particles span:nth-child(3) {
+            bottom: 15%;
+            left: 10%;
+            animation-delay: 1s;
+            width: 8px;
+            height: 8px;
+        }
+
+        .avatar-particles span:nth-child(4) {
+            bottom: 20%;
+            right: 20%;
+            animation-delay: 1.5s;
+        }
+
+        .avatar-particles span:nth-child(5) {
+            top: 50%;
+            left: 5%;
+            animation-delay: 2s;
+            width: 5px;
+            height: 5px;
+        }
+
+        .avatar-particles span:nth-child(6) {
+            top: 40%;
+            right: 5%;
+            animation-delay: 2.5s;
+            width: 7px;
+            height: 7px;
+        }
+
+        @keyframes floatParticle {
+            0%, 100% {
+                transform: translateY(0) scale(1);
+                opacity: 0.6;
+            }
+            50% {
+                transform: translateY(-20px) scale(1.2);
+                opacity: 1;
+            }
+        }
+
+        /* Shadow underneath avatar */
+        .avatar-shadow {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 20px;
+            background: radial-gradient(ellipse, rgba(0, 0, 0, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: shadowPulse 4s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        @keyframes shadowPulse {
+            0%, 100% {
+                transform: translateX(-50%) scale(1);
+                opacity: 0.3;
+            }
+            50% {
+                transform: translateX(-50%) scale(0.7);
+                opacity: 0.15;
+            }
+        }
+
+        /* Welcome text styling */
+        .welcome-screen h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInUp 0.8s ease-out 0.3s both;
+        }
+
+        .welcome-screen p {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 30px;
+            max-width: 400px;
+            animation: fadeInUp 0.8s ease-out 0.5s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Feature pills */
+        .feature-pills {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 40px;
+            animation: fadeInUp 0.8s ease-out 0.7s both;
+        }
+
+        .pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 50px;
+            font-size: 0.9rem;
+            color: #a5b4fc;
+            transition: all 0.3s ease;
+        }
+
+        .pill:hover {
+            background: rgba(99, 102, 241, 0.25);
+            border-color: rgba(99, 102, 241, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .pill i {
+            font-size: 0.85rem;
+        }
+
+        /* Suggestion chips */
+        .welcome-suggestions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            animation: fadeInUp 0.8s ease-out 0.9s both;
+        }
+
+        .suggestion-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .suggestion-chip:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: #fff;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
+        }
+
+        .suggestion-chip i {
+            font-size: 0.9rem;
+            color: #a5b4fc;
+        }
+
+        /* Light theme adjustments */
+        [data-theme="light"] .welcome-screen h2 {
+            background: linear-gradient(135deg, #1e1b4b 0%, #4f46e5 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        [data-theme="light"] .welcome-screen p {
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        [data-theme="light"] .pill {
+            background: rgba(99, 102, 241, 0.1);
+            color: #4f46e5;
+        }
+
+        [data-theme="light"] .suggestion-chip {
+            background: rgba(0, 0, 0, 0.03);
+            border-color: rgba(0, 0, 0, 0.1);
+            color: rgba(0, 0, 0, 0.7);
+        }
+
+        [data-theme="light"] .suggestion-chip:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: #4f46e5;
+        }
+
+        [data-theme="light"] .avatar-glow {
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%);
+        }
+
+        [data-theme="light"] .avatar-shadow {
+            background: radial-gradient(ellipse, rgba(0, 0, 0, 0.15) 0%, transparent 70%);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .welcome-avatar {
+                width: 120px;
+                height: 120px;
+            }
+
+            .avatar-inner {
+                width: 90px;
+                height: 90px;
+            }
+
+            .avatar-rings span:nth-child(1) {
+                width: 110px;
+                height: 110px;
+            }
+
+            .avatar-rings span:nth-child(2) {
+                width: 130px;
+                height: 130px;
+            }
+
+            .avatar-rings span:nth-child(3) {
+                width: 150px;
+                height: 150px;
+            }
+
+            .avatar-glow {
+                width: 140px;
+                height: 140px;
+            }
+
+            .welcome-screen h2 {
+                font-size: 1.6rem;
+            }
+
+            .welcome-screen p {
+                font-size: 1rem;
+            }
+
+            .feature-pills {
+                gap: 8px;
+            }
+
+            .pill {
+                padding: 8px 14px;
+                font-size: 0.85rem;
+            }
+
+            .suggestion-chip {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="chat-app">
-        <!-- Minimal Sidebar -->
+        <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <a href="/" class="logo-link">
                     <span class="logo-text">VectorPlex</span>
                 </a>
-                <button class="new-chat-btn" onclick="window.location.href='/'">
-                    <i class="fas fa-plus"></i>
+                <button class="sidebar-collapse-btn" id="sidebarCollapseBtn">
+                    <i class="fas fa-chevron-left"></i>
                 </button>
             </div>
-            
+
             <div class="sidebar-content">
-                <!-- Video Info -->
-                <div class="video-info">
-                    <div class="video-icon">
-                        <i class="fas fa-video"></i>
-                    </div>
-                    <div class="video-details">
-                        <span class="video-title">{{ chat_data.video_title }}</span>
-                        <span class="session-id">{{ session_id[:8] }}...</span>
+                <button class="new-chat-btn" onclick="window.location.href='/'">
+                    <i class="fas fa-plus"></i>
+                    <span>New Chat</span>
+                </button>
+
+                <div class="chat-sessions">
+                    <h4>Current Session</h4>
+                    <div class="sessions-list" id="sessionsList">
+                        <div class="session-item active">
+                            <i class="fas fa-message"></i>
+                            <span class="session-title">{{ chat_data.video_title[:25] }}...</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Quick Prompts -->
-                <div class="quick-prompts">
-                    <h4>Quick Prompts</h4>
-                    <button class="prompt-btn" data-prompt="Summarize this video">
-                        <i class="fas fa-align-left"></i> Summary
-                    </button>
-                    <button class="prompt-btn" data-prompt="What are the main topics?">
-                        <i class="fas fa-list"></i> Topics
-                    </button>
-                    <button class="prompt-btn" data-prompt="Key timestamps">
-                        <i class="fas fa-clock"></i> Timestamps
-                    </button>
-                    <button class="prompt-btn" data-prompt="Key takeaways">
-                        <i class="fas fa-lightbulb"></i> Takeaways
-                    </button>
+                <div class="video-info-card">
+                    <div class="video-thumbnail">
+                        <i class="fas fa-play-circle"></i>
+                    </div>
+                    <div class="video-meta">
+                        <span class="video-title">{{ chat_data.video_title }}</span>
+                        <span class="session-id">
+                            <i class="fas fa-fingerprint"></i>
+                            {{ session_id[:8] }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <h4>Quick Actions</h4>
+                    <div class="action-grid">
+                        <button class="action-btn" data-prompt="Summarize this video in detail">
+                            <i class="fas fa-align-left"></i>
+                            <span>Summary</span>
+                        </button>
+                        <button class="action-btn" data-prompt="List all main topics covered">
+                            <i class="fas fa-list-check"></i>
+                            <span>Topics</span>
+                        </button>
+                        <button class="action-btn" data-prompt="Give me key timestamps">
+                            <i class="fas fa-clock"></i>
+                            <span>Timestamps</span>
+                        </button>
+                        <button class="action-btn" data-prompt="What are the key takeaways?">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>Takeaways</span>
+                        </button>
+                        <button class="action-btn" data-prompt="Create a quiz from this content">
+                            <i class="fas fa-question-circle"></i>
+                            <span>Quiz</span>
+                        </button>
+                        <button class="action-btn" data-prompt="Explain the main concept simply">
+                            <i class="fas fa-brain"></i>
+                            <span>Explain</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
             <div class="sidebar-footer">
-                <button class="sidebar-btn" id="exportBtn" title="Export Chat">
+                <button class="footer-btn" id="exportBtn" title="Export Chat">
                     <i class="fas fa-download"></i>
+                    <span>Export</span>
                 </button>
-                <button class="sidebar-btn danger" id="leaveChatBtn" title="Leave Chat">
+                <button class="footer-btn danger" id="leaveChatBtn" title="Leave Chat">
                     <i class="fas fa-sign-out-alt"></i>
+                    <span>Leave</span>
                 </button>
             </div>
         </aside>
@@ -72,16 +593,17 @@
                         <i class="fas fa-bars"></i>
                     </button>
                     <div class="header-info">
-                        <h1>VectorPlex Chat</h1>
-                        <span class="ai-status">
-                            <span class="status-dot"></span>
-                            Powered by Groq
-                        </span>
+                        <h1>VectorPlex AI</h1>
+                        <div class="ai-status">
+                            <span class="status-indicator online"></span>
+                            <span class="status-text">Powered by VectorPlex</span>
+                        </div>
                     </div>
                 </div>
+
                 <div class="header-actions">
-                    <button class="header-btn" id="voiceModeBtn" title="Voice Mode">
-                        <i class="fas fa-microphone"></i>
+                    <button class="header-btn" id="clearChatBtn" title="Clear Chat">
+                        <i class="fas fa-broom"></i>
                     </button>
                     <button class="header-btn" id="themeToggle" title="Toggle Theme">
                         <i class="fas fa-moon"></i>
@@ -92,25 +614,62 @@
                 </div>
             </header>
 
-            <!-- Chat Messages -->
+            <!-- Chat Messages Container -->
             <div class="chat-messages-wrapper">
                 <div class="chat-messages" id="chatMessages">
-                    <!-- Welcome Screen -->
+                    <!-- Welcome Screen with Floating Avatar -->
                     <div class="welcome-screen" id="welcomeScreen">
-                        <div class="welcome-icon">
-                            <i class="fas fa-comments"></i>
+                        <div class="welcome-avatar">
+                            <!-- Glowing background -->
+                            <div class="avatar-glow"></div>
+                            
+                            <!-- Floating particles -->
+                            <div class="avatar-particles">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            
+                            <!-- Orbiting rings -->
+                            <div class="avatar-rings">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            
+                            <!-- Main avatar image -->
+                            <div class="avatar-inner">
+                                <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="VectorPlex Avatar">
+                            </div>
+                            
+                            <!-- Shadow underneath -->
+                            <div class="avatar-shadow"></div>
                         </div>
-                        <h2>Ready to Chat</h2>
-                        <p>Your video has been processed. Ask me anything about its content!</p>
+                        
+                        <h2>Hi! I'm VectorPlex ✨</h2>
+                        <p>Your AI assistant. I've analyzed your video and I'm ready to help!</p>
+                        
+                        <div class="feature-pills">
+                            <span class="pill"><i class="fas fa-brain"></i> Smart Analysis</span>
+                            <span class="pill"><i class="fas fa-bolt"></i> Instant Answers</span>
+                            <span class="pill"><i class="fas fa-volume-up"></i> Listen to Responses</span>
+                        </div>
+
                         <div class="welcome-suggestions">
-                            <button class="suggestion-btn" data-prompt="What is this video about?">
+                            <button class="suggestion-chip" data-prompt="What is this video about?">
                                 <i class="fas fa-question"></i> What's it about?
                             </button>
-                            <button class="suggestion-btn" data-prompt="Give me a summary">
-                                <i class="fas fa-file-alt"></i> Summary
+                            <button class="suggestion-chip" data-prompt="Give me a detailed summary">
+                                <i class="fas fa-file-alt"></i> Summarize
                             </button>
-                            <button class="suggestion-btn" data-prompt="Key highlights">
+                            <button class="suggestion-chip" data-prompt="What are the key highlights?">
                                 <i class="fas fa-star"></i> Highlights
+                            </button>
+                            <button class="suggestion-chip" data-prompt="Explain in simple terms">
+                                <i class="fas fa-lightbulb"></i> Simplify
                             </button>
                         </div>
                     </div>
@@ -118,85 +677,35 @@
             </div>
 
             <!-- Chat Input -->
-            <div class="chat-input-container">
+            <div class="chat-input-container" id="textInputContainer">
                 <div class="chat-input-wrapper">
                     <textarea 
                         id="messageInput" 
-                        placeholder="Ask anything about your video..."
+                        placeholder="Ask VectorPlex anything about your video..."
                         rows="1"
                     ></textarea>
                     <div class="input-actions">
-                        <button class="voice-input-btn" id="voiceInputBtn" title="Voice Input">
-                            <i class="fas fa-microphone"></i>
-                        </button>
-                        <button class="send-btn" id="sendBtn" title="Send">
-                            <i class="fas fa-paper-plane"></i>
+                        <button class="send-btn" id="sendBtn" title="Send" disabled>
+                            <i class="fas fa-arrow-up"></i>
                         </button>
                     </div>
                 </div>
-                <div class="input-hints">
-                    <span><kbd>Enter</kbd> to send</span>
-                    <span><kbd>Shift+Enter</kbd> new line</span>
+                <div class="input-footer">
+                    <span class="powered-by">
+                        <i class="fas fa-bolt"></i> Powered by VectorPlex
+                    </span>
+                    <div class="input-hints">
+                        <kbd>Enter</kbd> to send • <kbd>Shift+Enter</kbd> new line
+                    </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Voice Mode Modal -->
-    <div class="modal" id="voiceModal">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content voice-modal">
-            <div class="voice-modal-header">
-                <h3><i class="fas fa-microphone"></i> Voice Mode</h3>
-                <button class="modal-close" id="closeVoiceModal">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="voice-modal-body">
-                <div class="voice-visualizer" id="voiceVisualizer">
-                    <div class="voice-circle">
-                        <i class="fas fa-microphone"></i>
-                    </div>
-                    <div class="voice-waves">
-                        <span></span><span></span><span></span><span></span><span></span>
-                    </div>
-                </div>
-                <p class="voice-status" id="voiceStatus">Click to start speaking</p>
-                <div class="voice-transcript" id="voiceTranscript"></div>
-            </div>
-            <div class="voice-modal-footer">
-                <button class="voice-action-btn" id="startVoiceBtn">
-                    <i class="fas fa-microphone"></i> Start Listening
-                </button>
-                <button class="voice-action-btn secondary" id="sendVoiceBtn" disabled>
-                    <i class="fas fa-paper-plane"></i> Send Message
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Leave Chat Confirmation Modal -->
-    <div class="modal" id="leaveModal">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content confirm-modal">
-            <div class="confirm-icon">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <h3>Leave Chat?</h3>
-            <p>This will delete all session data including the processed video. This action cannot be undone.</p>
-            <div class="confirm-actions">
-                <button class="btn-secondary" id="cancelLeaveBtn">Cancel</button>
-                <button class="btn-danger" id="confirmLeaveBtn">
-                    <i class="fas fa-sign-out-alt"></i> Leave & Delete
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Export Modal -->
     <div class="modal" id="exportModal">
         <div class="modal-backdrop"></div>
-        <div class="modal-content">
+        <div class="modal-content export-modal">
             <div class="modal-header">
                 <h3><i class="fas fa-download"></i> Export Chat</h3>
                 <button class="modal-close" id="closeExportModal">
@@ -204,35 +713,68 @@
                 </button>
             </div>
             <div class="export-options">
+                <button class="export-option" data-format="pdf">
+                    <div class="export-icon pdf">
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <div class="export-info">
+                        <span class="export-name">PDF Document</span>
+                        <span class="export-desc">Best for printing & sharing</span>
+                    </div>
+                </button>
                 <button class="export-option" data-format="txt">
-                    <i class="fas fa-file-alt"></i>
-                    <span>Plain Text</span>
+                    <div class="export-icon txt">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <div class="export-info">
+                        <span class="export-name">Plain Text</span>
+                        <span class="export-desc">Simple text format</span>
+                    </div>
                 </button>
                 <button class="export-option" data-format="md">
-                    <i class="fab fa-markdown"></i>
-                    <span>Markdown</span>
+                    <div class="export-icon md">
+                        <i class="fab fa-markdown"></i>
+                    </div>
+                    <div class="export-info">
+                        <span class="export-name">Markdown</span>
+                        <span class="export-desc">For documentation</span>
+                    </div>
                 </button>
                 <button class="export-option" data-format="json">
-                    <i class="fas fa-code"></i>
-                    <span>JSON</span>
+                    <div class="export-icon json">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <div class="export-info">
+                        <span class="export-name">JSON</span>
+                        <span class="export-desc">For developers</span>
+                    </div>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Blue Ray Effect -->
-    <div class="blue-ray-effect" id="blueRayEffect"></div>
-    
-    <!-- Yellow Ray Effect -->
-    <div class="yellow-ray-effect" id="yellowRayEffect"></div>
+    <!-- Leave Chat Modal -->
+    <div class="modal" id="leaveModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content confirm-modal">
+            <div class="confirm-icon warning">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3>Leave this chat?</h3>
+            <p>This will permanently delete all session data including the processed video. This action cannot be undone.</p>
+            <div class="confirm-actions">
+                <button class="btn-secondary" id="cancelLeaveBtn">
+                    <i class="fas fa-arrow-left"></i> Stay
+                </button>
+                <button class="btn-danger" id="confirmLeaveBtn">
+                    <i class="fas fa-trash"></i> Delete & Leave
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
-
-    <!-- Audio for effects -->
-    <audio id="swooshSound" preload="auto">
-        <source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYNJmPJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/+0DEAAACkAFeAAAAAgAALCAAAAQSIYxjGdBDGMY0yJYxjGMYxoY0MYxjGMaGNDGMYxjGhjQxjGMYxoY0MYxjGMaGNDGMYxjGMaGM" type="audio/mpeg">
-    </audio>
 
     <!-- Session Data -->
     <script>

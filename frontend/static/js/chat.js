@@ -1,50 +1,57 @@
-// VectorPlex V2 - Chat Script
+// VectorPlex V2 - Chat Script (Complete)
 document.addEventListener('DOMContentLoaded', () => {
-    // Get session ID from window object (set by Flask template)
+    // ============================================
+    // Configuration & State
+    // ============================================
+    
     const SESSION_ID = window.SESSION_ID || getSessionIdFromUrl();
     
-    // Elements
-    const chatMessages = document.getElementById('chatMessages');
-    const welcomeScreen = document.getElementById('welcomeScreen');
-    const messageInput = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const voiceInputBtn = document.getElementById('voiceInputBtn');
-    const menuToggle = document.getElementById('menuToggle');
-    const sidebar = document.getElementById('sidebar');
-    const themeToggle = document.getElementById('themeToggle');
-    const voiceModeBtn = document.getElementById('voiceModeBtn');
-    const leaveChatBtn = document.getElementById('leaveChatBtn');
-    const exportBtn = document.getElementById('exportBtn');
-    
-    // Modals
-    const voiceModal = document.getElementById('voiceModal');
-    const leaveModal = document.getElementById('leaveModal');
-    const exportModal = document.getElementById('exportModal');
-    
-    // Ray effects
-    const blueRayEffect = document.getElementById('blueRayEffect');
-    const yellowRayEffect = document.getElementById('yellowRayEffect');
-    
-    // Audio
-    const swooshSound = document.getElementById('swooshSound');
-    
-    // State
-    const messages = [];
-    let isProcessing = false;
-    let recognition = null;
+    const STATE = {
+        messages: [],
+        isProcessing: false,
+        isSpeaking: false,
+        currentUtterance: null,
+        selectedVoice: null
+    };
 
-    // Initialize
-    init();
+    // ============================================
+    // DOM Elements
+    // ============================================
+    
+    const elements = {
+        chatMessages: document.getElementById('chatMessages'),
+        welcomeScreen: document.getElementById('welcomeScreen'),
+        sidebar: document.getElementById('sidebar'),
+        messageInput: document.getElementById('messageInput'),
+        sendBtn: document.getElementById('sendBtn'),
+        menuToggle: document.getElementById('menuToggle'),
+        themeToggle: document.getElementById('themeToggle'),
+        clearChatBtn: document.getElementById('clearChatBtn'),
+        sidebarCollapseBtn: document.getElementById('sidebarCollapseBtn'),
+        exportModal: document.getElementById('exportModal'),
+        leaveModal: document.getElementById('leaveModal'),
+        exportBtn: document.getElementById('exportBtn'),
+        leaveChatBtn: document.getElementById('leaveChatBtn'),
+        confirmLeaveBtn: document.getElementById('confirmLeaveBtn'),
+        cancelLeaveBtn: document.getElementById('cancelLeaveBtn'),
+        closeExportModal: document.getElementById('closeExportModal'),
+        toastContainer: document.getElementById('toastContainer')
+    };
 
+    // ============================================
+    // Initialization
+    // ============================================
+    
     function init() {
         setupEventListeners();
         setupTextarea();
-        setupSpeechRecognition();
+        setupSpeechSynthesis();
         loadTheme();
         updateSendButton();
-        
-        // Load existing messages if any
         loadChatHistory();
+        setupCodeCopyButtons();
+        
+        console.log('VectorPlex Chat initialized');
     }
 
     function getSessionIdFromUrl() {
@@ -53,348 +60,369 @@ document.addEventListener('DOMContentLoaded', () => {
         return match ? match[1] : null;
     }
 
+    // ============================================
+    // Event Listeners
+    // ============================================
+    
     function setupEventListeners() {
         // Send message
-        if (sendBtn) {
-            sendBtn.addEventListener('click', sendMessage);
-        }
-
+        elements.sendBtn?.addEventListener('click', sendMessage);
+        
         // Enter to send
-        if (messageInput) {
-            messageInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
+        elements.messageInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
 
-            messageInput.addEventListener('input', updateSendButton);
-        }
+        elements.messageInput?.addEventListener('input', () => {
+            updateSendButton();
+            autoResizeTextarea();
+        });
 
-        // Quick prompts
-        document.querySelectorAll('.prompt-btn, .suggestion-btn').forEach(btn => {
+        // Quick prompts & suggestions
+        document.querySelectorAll('.action-btn, .suggestion-chip').forEach(btn => {
             btn.addEventListener('click', () => {
                 const prompt = btn.dataset.prompt;
-                if (prompt && messageInput) {
-                    messageInput.value = prompt;
+                if (prompt) {
+                    elements.messageInput.value = prompt;
                     updateSendButton();
                     sendMessage();
                 }
             });
         });
 
-        // Menu toggle (mobile)
-        if (menuToggle) {
-            menuToggle.addEventListener('click', toggleSidebar);
-        }
-
-        // Theme toggle
-        if (themeToggle) {
-            themeToggle.addEventListener('click', toggleTheme);
-        }
-
-        // Voice mode button
-        if (voiceModeBtn) {
-            voiceModeBtn.addEventListener('click', () => openModal(voiceModal));
-        }
-
-        // Voice input button
-        if (voiceInputBtn) {
-            voiceInputBtn.addEventListener('click', () => openModal(voiceModal));
-        }
-
-        // Leave chat button
-        if (leaveChatBtn) {
-            leaveChatBtn.addEventListener('click', () => openModal(leaveModal));
-        }
-
-        // Export button
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => openModal(exportModal));
-        }
-
-        // Modal close buttons
-        document.querySelectorAll('.modal-close, .modal-backdrop').forEach(el => {
-            el.addEventListener('click', (e) => {
-                if (e.target === el) {
-                    const modal = e.target.closest('.modal');
-                    if (modal) closeModal(modal);
-                }
-            });
+        // Sidebar toggle (mobile)
+        elements.menuToggle?.addEventListener('click', toggleSidebar);
+        
+        // Sidebar collapse
+        elements.sidebarCollapseBtn?.addEventListener('click', () => {
+            elements.sidebar?.classList.toggle('collapsed');
         });
 
-        // Leave chat confirmation
-        const confirmLeaveBtn = document.getElementById('confirmLeaveBtn');
-        const cancelLeaveBtn = document.getElementById('cancelLeaveBtn');
-        
-        if (confirmLeaveBtn) {
-            confirmLeaveBtn.addEventListener('click', leaveChat);
-        }
-        if (cancelLeaveBtn) {
-            cancelLeaveBtn.addEventListener('click', () => closeModal(leaveModal));
-        }
+        // Theme toggle
+        elements.themeToggle?.addEventListener('click', toggleTheme);
 
-        // Voice modal buttons
-        const startVoiceBtn = document.getElementById('startVoiceBtn');
-        const sendVoiceBtn = document.getElementById('sendVoiceBtn');
-        const closeVoiceModal = document.getElementById('closeVoiceModal');
+        // Clear chat
+        elements.clearChatBtn?.addEventListener('click', clearChat);
 
-        if (startVoiceBtn) {
-            startVoiceBtn.addEventListener('click', toggleVoiceRecognition);
-        }
-        if (sendVoiceBtn) {
-            sendVoiceBtn.addEventListener('click', sendVoiceMessage);
-        }
-        if (closeVoiceModal) {
-            closeVoiceModal.addEventListener('click', () => closeModal(voiceModal));
-        }
+        // Modal triggers
+        elements.exportBtn?.addEventListener('click', () => openModal(elements.exportModal));
+        elements.leaveChatBtn?.addEventListener('click', () => openModal(elements.leaveModal));
+
+        // Modal close
+        elements.closeExportModal?.addEventListener('click', () => closeModal(elements.exportModal));
+        elements.cancelLeaveBtn?.addEventListener('click', () => closeModal(elements.leaveModal));
+        elements.confirmLeaveBtn?.addEventListener('click', leaveChat);
+
+        // Modal backdrop clicks
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+            backdrop.addEventListener('click', (e) => {
+                const modal = e.target.closest('.modal');
+                if (modal) closeModal(modal);
+            });
+        });
 
         // Export options
         document.querySelectorAll('.export-option').forEach(btn => {
             btn.addEventListener('click', () => {
                 const format = btn.dataset.format;
                 exportChat(format);
-                closeModal(exportModal);
+                closeModal(elements.exportModal);
             });
         });
 
-        const closeExportModal = document.getElementById('closeExportModal');
-        if (closeExportModal) {
-            closeExportModal.addEventListener('click', () => closeModal(exportModal));
-        }
-
-        // Close sidebar when clicking outside on mobile
+        // Close sidebar on mobile when clicking outside
         document.addEventListener('click', (e) => {
             if (window.innerWidth <= 768) {
-                if (sidebar && sidebar.classList.contains('active')) {
-                    if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
-                        sidebar.classList.remove('active');
+                if (elements.sidebar?.classList.contains('active')) {
+                    if (!elements.sidebar.contains(e.target) && 
+                        !elements.menuToggle?.contains(e.target)) {
+                        elements.sidebar.classList.remove('active');
                     }
                 }
             }
         });
-    }
 
-    function setupTextarea() {
-        if (!messageInput) return;
-        
-        messageInput.addEventListener('input', () => {
-            messageInput.style.height = 'auto';
-            messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + 'px';
+        // Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (STATE.isSpeaking) {
+                    stopSpeaking();
+                }
+                document.querySelectorAll('.modal.active').forEach(modal => {
+                    closeModal(modal);
+                });
+            }
         });
     }
 
-    function setupSpeechRecognition() {
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
+    // Setup code copy buttons (delegated event)
+    function setupCodeCopyButtons() {
+        document.addEventListener('click', (e) => {
+            const copyBtn = e.target.closest('.copy-btn');
+            if (copyBtn) {
+                const codeId = copyBtn.dataset.codeId;
+                const codeElement = document.getElementById(codeId);
+                if (codeElement) {
+                    navigator.clipboard.writeText(codeElement.textContent).then(() => {
+                        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                        }, 2000);
+                    }).catch(() => {
+                        showToast('Failed to copy code', 'error');
+                    });
+                }
+            }
+        });
+    }
 
-            recognition.onresult = (event) => {
-                let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
-                }
-                const voiceTranscript = document.getElementById('voiceTranscript');
-                if (voiceTranscript) {
-                    voiceTranscript.textContent = transcript;
-                }
-                const sendVoiceBtn = document.getElementById('sendVoiceBtn');
-                if (sendVoiceBtn) {
-                    sendVoiceBtn.disabled = !transcript.trim();
-                }
-            };
+    // ============================================
+    // Textarea Functions
+    // ============================================
+    
+    function setupTextarea() {
+        if (!elements.messageInput) return;
+        autoResizeTextarea();
+    }
 
-            recognition.onend = () => {
-                const voiceVisualizer = document.getElementById('voiceVisualizer');
-                const voiceStatus = document.getElementById('voiceStatus');
-                const startVoiceBtn = document.getElementById('startVoiceBtn');
-                
-                if (voiceVisualizer) voiceVisualizer.classList.remove('listening');
-                if (voiceStatus) voiceStatus.textContent = 'Click to start speaking';
-                if (startVoiceBtn) {
-                    startVoiceBtn.innerHTML = '<i class="fas fa-microphone"></i> Start Listening';
-                }
-            };
-        }
+    function autoResizeTextarea() {
+        if (!elements.messageInput) return;
+        elements.messageInput.style.height = 'auto';
+        elements.messageInput.style.height = Math.min(elements.messageInput.scrollHeight, 150) + 'px';
     }
 
     function updateSendButton() {
-        if (sendBtn && messageInput) {
-            sendBtn.disabled = !messageInput.value.trim() || isProcessing;
+        if (elements.sendBtn && elements.messageInput) {
+            const hasText = elements.messageInput.value.trim().length > 0;
+            elements.sendBtn.disabled = !hasText || STATE.isProcessing;
         }
     }
 
-    // Sidebar toggle
-    function toggleSidebar() {
-        if (sidebar) {
-            sidebar.classList.toggle('active');
-        }
-    }
-
-    // Theme functions
-    function loadTheme() {
-        const savedTheme = localStorage.getItem('vectorplex-theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        updateThemeIcon(savedTheme);
-    }
-
-    function toggleTheme() {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('vectorplex-theme', newTheme);
-        updateThemeIcon(newTheme);
-    }
-
-    function updateThemeIcon(theme) {
-        if (themeToggle) {
-            const icon = themeToggle.querySelector('i');
-            if (icon) {
-                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-            }
-        }
-    }
-
-    // Modal functions
-    function openModal(modal) {
-        if (modal) modal.classList.add('active');
-    }
-
-    function closeModal(modal) {
-        if (modal) modal.classList.remove('active');
-    }
-
-    // Voice functions
-    function toggleVoiceRecognition() {
-        if (!recognition) {
-            showToast('Speech recognition not supported in this browser', 'error');
+    // ============================================
+    // Speech Synthesis (Listen Feature)
+    // ============================================
+    
+    function setupSpeechSynthesis() {
+        if (!('speechSynthesis' in window)) {
+            console.warn('Speech synthesis not supported');
             return;
         }
 
-        const voiceVisualizer = document.getElementById('voiceVisualizer');
-        const voiceStatus = document.getElementById('voiceStatus');
-        const startVoiceBtn = document.getElementById('startVoiceBtn');
-
-        if (voiceVisualizer && voiceVisualizer.classList.contains('listening')) {
-            recognition.stop();
-        } else {
-            recognition.start();
-            if (voiceVisualizer) voiceVisualizer.classList.add('listening');
-            if (voiceStatus) voiceStatus.textContent = 'Listening...';
-            if (startVoiceBtn) startVoiceBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Listening';
-        }
-    }
-
-    function sendVoiceMessage() {
-        const voiceTranscript = document.getElementById('voiceTranscript');
-        if (voiceTranscript && voiceTranscript.textContent.trim()) {
-            messageInput.value = voiceTranscript.textContent;
-            closeModal(voiceModal);
-            sendMessage();
-            voiceTranscript.textContent = '';
-        }
-    }
-
-    // Load chat history
-    async function loadChatHistory() {
-        if (!SESSION_ID) return;
-        
-        try {
-            const response = await fetch(`/api/history/${SESSION_ID}`);
-            const data = await response.json();
+        function loadVoices() {
+            const voices = speechSynthesis.getVoices();
             
-            if (data.success && data.messages && data.messages.length > 0) {
-                // Hide welcome screen
-                if (welcomeScreen) {
-                    welcomeScreen.style.display = 'none';
+            // Prefer natural, high-quality voices (like Gemini style)
+            const preferredVoices = [
+                'Google US English',
+                'Google UK English Female',
+                'Google UK English Male',
+                'Microsoft Zira Desktop',
+                'Microsoft David Desktop',
+                'Samantha',
+                'Alex',
+                'Daniel',
+                'Karen',
+                'Moira',
+                'Tessa',
+                'Veena',
+                'Victoria',
+                'Fiona'
+            ];
+
+            // Find the best available voice
+            for (const preferred of preferredVoices) {
+                const voice = voices.find(v => v.name.includes(preferred));
+                if (voice) {
+                    STATE.selectedVoice = voice;
+                    console.log('Selected voice:', voice.name);
+                    break;
                 }
-                
-                // Add existing messages
-                data.messages.forEach(msg => {
-                    const type = msg.role === 'user' ? 'user' : 'ai';
-                    addMessage(type, msg.content, false);
-                });
             }
-        } catch (error) {
-            console.error('Error loading chat history:', error);
+
+            // Fallback to first English voice
+            if (!STATE.selectedVoice) {
+                STATE.selectedVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+                if (STATE.selectedVoice) {
+                    console.log('Fallback voice:', STATE.selectedVoice.name);
+                }
+            }
         }
+
+        // Load voices immediately if available
+        if (speechSynthesis.getVoices().length) {
+            loadVoices();
+        }
+        
+        // Also listen for voices changed event
+        speechSynthesis.onvoiceschanged = loadVoices;
     }
 
-    // Send message
+    function speakText(text, button) {
+        if (!('speechSynthesis' in window)) {
+            showToast('Text-to-speech not supported in this browser', 'error');
+            return;
+        }
+
+        // If already speaking, stop
+        if (STATE.isSpeaking) {
+            stopSpeaking();
+            return;
+        }
+
+        // Clean text for speaking - remove code, markdown, etc.
+        const cleanText = text
+            .replace(/```[\s\S]*?```/g, 'Code block omitted.')
+            .replace(/`([^`]+)`/g, '$1')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/\*([^*]+)\*/g, '$1')
+            .replace(/#{1,6}\s/g, '')
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            .replace(/<[^>]*>/g, '')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/\n+/g, '. ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (!cleanText) {
+            showToast('No text to speak', 'warning');
+            return;
+        }
+
+        // Cancel any ongoing speech
+        speechSynthesis.cancel();
+
+        // Create utterance
+        STATE.currentUtterance = new SpeechSynthesisUtterance(cleanText);
+        
+        // Set voice if available
+        if (STATE.selectedVoice) {
+            STATE.currentUtterance.voice = STATE.selectedVoice;
+        }
+        
+        // Natural speaking settings
+        STATE.currentUtterance.rate = 1.0;
+        STATE.currentUtterance.pitch = 1.0;
+        STATE.currentUtterance.volume = 1.0;
+
+        STATE.currentUtterance.onstart = () => {
+            STATE.isSpeaking = true;
+            if (button) {
+                button.innerHTML = '<i class="fas fa-stop"></i> Stop';
+                button.classList.add('speaking');
+            }
+        };
+
+        STATE.currentUtterance.onend = () => {
+            STATE.isSpeaking = false;
+            STATE.currentUtterance = null;
+            if (button) {
+                button.innerHTML = '<i class="fas fa-volume-up"></i> Listen';
+                button.classList.remove('speaking');
+            }
+        };
+
+        STATE.currentUtterance.onerror = (e) => {
+            console.error('Speech synthesis error:', e);
+            STATE.isSpeaking = false;
+            STATE.currentUtterance = null;
+            if (button) {
+                button.innerHTML = '<i class="fas fa-volume-up"></i> Listen';
+                button.classList.remove('speaking');
+            }
+            if (e.error !== 'canceled') {
+                showToast('Error playing audio', 'error');
+            }
+        };
+
+        // Start speaking
+        speechSynthesis.speak(STATE.currentUtterance);
+    }
+
+    function stopSpeaking() {
+        if (speechSynthesis) {
+            speechSynthesis.cancel();
+        }
+        STATE.isSpeaking = false;
+        STATE.currentUtterance = null;
+        
+        // Reset all listen buttons
+        document.querySelectorAll('.msg-action-btn.speaking').forEach(btn => {
+            btn.innerHTML = '<i class="fas fa-volume-up"></i> Listen';
+            btn.classList.remove('speaking');
+        });
+    }
+
+    // ============================================
+    // Message Handling
+    // ============================================
+    
     async function sendMessage() {
-        const text = messageInput.value.trim();
-        if (!text || isProcessing || !SESSION_ID) return;
+        const text = elements.messageInput?.value?.trim();
+        if (!text || STATE.isProcessing || !SESSION_ID) return;
 
-        isProcessing = true;
-        updateSendButton();
-
-        // Hide welcome screen
-        if (welcomeScreen) {
-            welcomeScreen.style.display = 'none';
+        // Stop speaking if active
+        if (STATE.isSpeaking) {
+            stopSpeaking();
         }
 
         // Add user message
         addMessage('user', text);
-        messageInput.value = '';
-        messageInput.style.height = 'auto';
+        hideWelcomeScreen();
 
-        // Add AI typing indicator
+        // Clear input
+        elements.messageInput.value = '';
+        autoResizeTextarea();
+        updateSendButton();
+
+        // Send to API
+        await sendToAPI(text);
+    }
+
+    async function sendToAPI(text) {
+        STATE.isProcessing = true;
+        updateSendButton();
+
         const typingId = addTypingIndicator();
 
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     session_id: SESSION_ID,
-                    message: text 
+                    message: text
                 })
             });
 
             const data = await response.json();
-
-            // Remove typing indicator
             removeTypingIndicator(typingId);
 
             if (data.success) {
-                const aiResponse = data.response;
-                addMessage('ai', aiResponse);
-
-                // Check for code and trigger blue ray
-                if (containsCode(aiResponse)) {
-                    triggerBlueRay();
-                }
-
-                // Check for math/formulas and trigger yellow ray
-                if (containsMath(aiResponse)) {
-                    triggerYellowRay();
-                }
+                addMessage('ai', data.response);
             } else {
-                addMessage('ai', 'Sorry, I encountered an error. Please try again.');
+                addMessage('ai', "I apologize, but I encountered an error processing your request. Please try again.");
                 showToast(data.error || 'Failed to get response', 'error');
             }
         } catch (error) {
             console.error('Chat error:', error);
             removeTypingIndicator(typingId);
-            addMessage('ai', 'Sorry, I encountered an error. Please try again.');
-            showToast('Network error. Please check your connection.', 'error');
+            addMessage('ai', "I apologize, there was a network error. Please check your connection and try again.");
+            showToast('Network error', 'error');
         }
 
-        isProcessing = false;
+        STATE.isProcessing = false;
         updateSendButton();
     }
 
     function addMessage(type, content, animate = true) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${type}`;
-        if (!animate) {
-            messageDiv.style.animation = 'none';
-        }
+        if (!animate) messageDiv.style.animation = 'none';
 
         const avatar = document.createElement('div');
         avatar.className = 'message-avatar';
@@ -406,14 +434,50 @@ document.addEventListener('DOMContentLoaded', () => {
         contentDiv.className = 'message-content';
         contentDiv.innerHTML = formatMessage(content);
 
+        // Add actions for AI messages
+        if (type === 'ai') {
+            const actions = document.createElement('div');
+            actions.className = 'message-actions';
+            actions.innerHTML = `
+                <button class="msg-action-btn copy-msg-btn" title="Copy message">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+                <button class="msg-action-btn listen-btn" title="Listen to message">
+                    <i class="fas fa-volume-up"></i> Listen
+                </button>
+            `;
+            contentDiv.appendChild(actions);
+
+            // Add event listeners for the buttons
+            const copyBtn = actions.querySelector('.copy-msg-btn');
+            const listenBtn = actions.querySelector('.listen-btn');
+
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(content).then(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                    showToast('Message copied to clipboard', 'success');
+                    setTimeout(() => {
+                        copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                    }, 2000);
+                }).catch(() => {
+                    showToast('Failed to copy message', 'error');
+                });
+            });
+
+            listenBtn.addEventListener('click', () => {
+                speakText(content, listenBtn);
+            });
+        }
+
         messageDiv.appendChild(avatar);
         messageDiv.appendChild(contentDiv);
-        chatMessages.appendChild(messageDiv);
+        elements.chatMessages?.appendChild(messageDiv);
 
-        // Scroll to bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Store original content for reference
+        messageDiv.dataset.content = content;
 
-        messages.push({ type, content, timestamp: new Date() });
+        scrollToBottom();
+        STATE.messages.push({ type, content, timestamp: new Date() });
     }
 
     function formatMessage(content) {
@@ -423,42 +487,44 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
 
-        // Format code blocks
+        // Code blocks with syntax highlighting header
         formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
             const language = lang || 'code';
+            const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
             return `
                 <div class="code-block">
                     <div class="code-header">
                         <span class="code-lang">${language}</span>
-                        <button class="copy-btn" onclick="copyCode(this)">
+                        <button class="copy-btn" data-code-id="${codeId}">
                             <i class="fas fa-copy"></i> Copy
                         </button>
                     </div>
                     <div class="code-content">
-                        <pre>${code.trim()}</pre>
+                        <pre id="${codeId}">${code.trim()}</pre>
                     </div>
                 </div>
             `;
         });
 
-        // Format inline code
+        // Inline code
         formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-        // Format math formulas ($$...$$)
-        formatted = formatted.replace(/\$\$([^$]+)\$\$/g, '<span class="math-highlight">$1</span>');
+        // Headers
+        formatted = formatted.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+        formatted = formatted.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+        formatted = formatted.replace(/^# (.+)$/gm, '<h2>$1</h2>');
 
-        // Format headers
-        formatted = formatted.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-        formatted = formatted.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-        formatted = formatted.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-        // Format bold text
+        // Bold
         formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-        // Format italic
+        // Italic
         formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-        // Format line breaks
+        // Lists (basic)
+        formatted = formatted.replace(/^\- (.+)$/gm, '• $1');
+        formatted = formatted.replace(/^\d+\. (.+)$/gm, '<span class="list-item">$&</span>');
+
+        // Line breaks
         formatted = formatted.replace(/\n/g, '<br>');
 
         return formatted;
@@ -481,141 +547,389 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        elements.chatMessages?.appendChild(messageDiv);
+        scrollToBottom();
 
         return id;
     }
 
     function removeTypingIndicator(id) {
         const element = document.getElementById(id);
-        if (element) element.remove();
-    }
-
-    // Content detection
-    function containsCode(text) {
-        return text.includes('```') || /`[^`]+`/.test(text);
-    }
-
-    function containsMath(text) {
-        return /\$\$[^$]+\$\$/.test(text) || 
-               /\b(equation|formula|calculate|math|=|×|÷|∑|∫|√)\b/i.test(text);
-    }
-
-    // Ray effects
-    function triggerBlueRay() {
-        if (blueRayEffect) {
-            blueRayEffect.classList.add('active');
-            playSwoosh();
-            setTimeout(() => {
-                blueRayEffect.classList.remove('active');
-            }, 800);
+        if (element) {
+            element.remove();
         }
     }
 
-    function triggerYellowRay() {
-        if (yellowRayEffect) {
-            yellowRayEffect.classList.add('active');
-            setTimeout(() => {
-                yellowRayEffect.classList.remove('active');
-            }, 800);
+    function scrollToBottom() {
+        const wrapper = document.querySelector('.chat-messages-wrapper');
+        if (wrapper) {
+            wrapper.scrollTo({
+                top: wrapper.scrollHeight,
+                behavior: 'smooth'
+            });
         }
     }
 
-    function playSwoosh() {
-        if (swooshSound) {
-            swooshSound.currentTime = 0;
-            swooshSound.play().catch(() => {});
+    function hideWelcomeScreen() {
+        if (elements.welcomeScreen) {
+            elements.welcomeScreen.style.display = 'none';
         }
     }
 
-    // Leave chat
+    // ============================================
+    // Chat History
+    // ============================================
+    
+    async function loadChatHistory() {
+        if (!SESSION_ID) return;
+
+        try {
+            const response = await fetch(`/api/history/${SESSION_ID}`);
+            const data = await response.json();
+
+            if (data.success && data.messages?.length > 0) {
+                hideWelcomeScreen();
+                data.messages.forEach(msg => {
+                    const type = msg.role === 'user' ? 'user' : 'ai';
+                    addMessage(type, msg.content, false);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading chat history:', error);
+        }
+    }
+
+    function clearChat() {
+        if (confirm('Clear all messages? This action cannot be undone.')) {
+            // Stop any ongoing speech
+            stopSpeaking();
+            
+            // Save welcome screen reference
+            const welcomeScreen = elements.welcomeScreen;
+            
+            // Clear messages container
+            elements.chatMessages.innerHTML = '';
+            
+            // Restore and show welcome screen
+            if (welcomeScreen) {
+                welcomeScreen.style.display = 'block';
+                elements.chatMessages.appendChild(welcomeScreen);
+            }
+            
+            // Clear state
+            STATE.messages = [];
+            
+            showToast('Chat cleared successfully', 'success');
+        }
+    }
+
+    // ============================================
+    // Leave Chat
+    // ============================================
+    
     async function leaveChat() {
         try {
+            // Cleanup session on server
             await fetch(`/api/session/${SESSION_ID}/cleanup`, {
                 method: 'POST'
             });
             
-            showToast('Session data deleted', 'success');
+            showToast('Session deleted', 'success');
             
+            // Redirect to home after short delay
             setTimeout(() => {
                 window.location.href = '/';
             }, 500);
         } catch (error) {
             console.error('Leave chat error:', error);
             showToast('Error leaving chat', 'error');
+            // Still redirect even on error
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1000);
         }
     }
 
-    // Export chat
+    // ============================================
+    // Theme
+    // ============================================
+    
+    function loadTheme() {
+        const savedTheme = localStorage.getItem('vectorplex-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcon(savedTheme);
+    }
+
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        const newTheme = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('vectorplex-theme', newTheme);
+        updateThemeIcon(newTheme);
+        showToast(`Switched to ${newTheme} mode`, 'info');
+    }
+
+    function updateThemeIcon(theme) {
+        const icon = elements.themeToggle?.querySelector('i');
+        if (icon) {
+            icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        }
+    }
+
+    // ============================================
+    // Sidebar
+    // ============================================
+    
+    function toggleSidebar() {
+        elements.sidebar?.classList.toggle('active');
+    }
+
+    // ============================================
+    // Modals
+    // ============================================
+    
+    function openModal(modal) {
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeModal(modal) {
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
+
+    // ============================================
+    // Export Functions
+    // ============================================
+    
     function exportChat(format) {
-        if (messages.length === 0) {
-            showToast('No messages to export', 'error');
+        if (STATE.messages.length === 0) {
+            showToast('No messages to export', 'warning');
             return;
         }
 
-        let content = '';
-        const filename = `vectorplex-chat-${SESSION_ID ? SESSION_ID.slice(0, 8) : 'export'}`;
+        const filename = `vectorplex-chat-${SESSION_ID?.slice(0, 8) || 'export'}`;
 
-        if (format === 'json') {
-            content = JSON.stringify(messages, null, 2);
-        } else if (format === 'md') {
-            content = `# VectorPlex Chat Export\n\n`;
-            content += messages.map(m => {
-                const prefix = m.type === 'user' ? '**You:**' : '**AI:**';
-                return `${prefix}\n${m.content}\n`;
-            }).join('\n---\n\n');
-        } else {
-            content = `VectorPlex Chat Export\n${'='.repeat(40)}\n\n`;
-            content += messages.map(m => {
-                const prefix = m.type === 'user' ? 'You:' : 'AI:';
-                return `${prefix}\n${m.content}\n`;
-            }).join('\n---\n\n');
+        switch (format) {
+            case 'pdf':
+                exportToPDF(filename);
+                break;
+            case 'json':
+                downloadFile(
+                    JSON.stringify({ 
+                        exportDate: new Date().toISOString(), 
+                        sessionId: SESSION_ID, 
+                        videoTitle: window.VIDEO_TITLE || 'Unknown',
+                        messages: STATE.messages 
+                    }, null, 2),
+                    `${filename}.json`,
+                    'application/json'
+                );
+                showToast('Exported as JSON', 'success');
+                break;
+            case 'md':
+                downloadFile(generateMarkdown(), `${filename}.md`, 'text/markdown');
+                showToast('Exported as Markdown', 'success');
+                break;
+            default:
+                downloadFile(generatePlainText(), `${filename}.txt`, 'text/plain');
+                showToast('Exported as Text', 'success');
         }
-
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${filename}.${format}`;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        showToast('Chat exported successfully', 'success');
     }
 
-    // Toast
-    function showToast(message, type = 'success') {
-        const container = document.getElementById('toastContainer');
+    function generateMarkdown() {
+        let md = `# VectorPlex Chat Export\n\n`;
+        md += `**Video:** ${window.VIDEO_TITLE || 'Unknown'}\n`;
+        md += `**Session:** ${SESSION_ID}\n`;
+        md += `**Date:** ${new Date().toLocaleString()}\n\n`;
+        md += `---\n\n`;
+
+        STATE.messages.forEach(msg => {
+            const role = msg.type === 'user' ? '👤 **You**' : '🤖 **VectorPlex**';
+            md += `${role}:\n\n${msg.content}\n\n---\n\n`;
+        });
+
+        md += `\n---\n*Exported from VectorPlex AI*`;
+        return md;
+    }
+
+    function generatePlainText() {
+        let txt = `VECTORPLEX CHAT EXPORT\n`;
+        txt += `${'='.repeat(50)}\n\n`;
+        txt += `Video: ${window.VIDEO_TITLE || 'Unknown'}\n`;
+        txt += `Session: ${SESSION_ID}\n`;
+        txt += `Date: ${new Date().toLocaleString()}\n\n`;
+        txt += `${'='.repeat(50)}\n\n`;
+
+        STATE.messages.forEach(msg => {
+            const role = msg.type === 'user' ? 'YOU' : 'VECTORPLEX';
+            txt += `[${role}]\n`;
+            txt += `${msg.content}\n\n`;
+            txt += `${'-'.repeat(30)}\n\n`;
+        });
+
+        txt += `\n${'='.repeat(50)}\n`;
+        txt += `Exported from VectorPlex AI\n`;
+        txt += `Powered by VectorPlex`;
+        return txt;
+    }
+
+    function exportToPDF(filename) {
+        // Check if jsPDF is available
+        if (typeof window.jspdf === 'undefined') {
+            showToast('PDF export not available', 'error');
+            return;
+        }
+
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 20;
+            const maxWidth = pageWidth - (margin * 2);
+            let y = margin;
+
+            // Title
+            doc.setFontSize(20);
+            doc.setTextColor(139, 92, 246); // Purple
+            doc.text('VectorPlex Chat Export', margin, y);
+            y += 12;
+
+            // Metadata
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Video: ${window.VIDEO_TITLE || 'Unknown'}`, margin, y);
+            y += 6;
+            doc.text(`Session: ${SESSION_ID}`, margin, y);
+            y += 6;
+            doc.text(`Date: ${new Date().toLocaleString()}`, margin, y);
+            y += 10;
+
+            // Divider line
+            doc.setDrawColor(139, 92, 246);
+            doc.setLineWidth(0.5);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 10;
+
+            // Messages
+            STATE.messages.forEach((msg, index) => {
+                // Check if we need a new page
+                if (y > pageHeight - 40) {
+                    doc.addPage();
+                    y = margin;
+                }
+
+                // Role header
+                doc.setFontSize(11);
+                doc.setTextColor(msg.type === 'user' ? 59 : 139, msg.type === 'user' ? 130 : 92, 246);
+                doc.setFont(undefined, 'bold');
+                doc.text(msg.type === 'user' ? 'You:' : 'VectorPlex:', margin, y);
+                y += 6;
+
+                // Message content
+                doc.setFontSize(10);
+                doc.setTextColor(50, 50, 50);
+                doc.setFont(undefined, 'normal');
+
+                // Clean content for PDF
+                const cleanContent = msg.content
+                    .replace(/```[\s\S]*?```/g, '[Code Block]')
+                    .replace(/`([^`]+)`/g, '$1')
+                    .replace(/\*\*([^*]+)\*\*/g, '$1')
+                    .replace(/\*([^*]+)\*/g, '$1')
+                    .replace(/#{1,6}\s/g, '');
+
+                const lines = doc.splitTextToSize(cleanContent, maxWidth);
+                
+                lines.forEach(line => {
+                    if (y > pageHeight - 20) {
+                        doc.addPage();
+                        y = margin;
+                    }
+                    doc.text(line, margin, y);
+                    y += 5;
+                });
+
+                y += 8;
+            });
+
+            // Footer on each page
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text('Powered by VectorPlex', margin, pageHeight - 10);
+                doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin - 20, pageHeight - 10);
+            }
+
+            // Save the PDF
+            doc.save(`${filename}.pdf`);
+            showToast('Exported as PDF', 'success');
+        } catch (error) {
+            console.error('PDF export error:', error);
+            showToast('Failed to export PDF', 'error');
+        }
+    }
+
+    function downloadFile(content, filename, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    // ============================================
+    // Toast Notifications
+    // ============================================
+    
+    function showToast(message, type = 'info') {
+        const container = elements.toastContainer;
         if (!container) return;
 
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            warning: 'fa-exclamation-triangle',
+            info: 'fa-info-circle'
+        };
+
         toast.innerHTML = `
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+            <i class="fas ${icons[type] || icons.info}"></i>
             <span>${message}</span>
         `;
+
         container.appendChild(toast);
 
+        // Auto remove after 4 seconds
         setTimeout(() => {
             toast.style.opacity = '0';
             toast.style.transform = 'translateX(100%)';
-            setTimeout(() => toast.remove(), 300);
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 300);
         }, 4000);
     }
 
-    // Global copy function
-    window.copyCode = (btn) => {
-        const codeBlock = btn.closest('.code-block');
-        const code = codeBlock.querySelector('pre').textContent;
-        
-        navigator.clipboard.writeText(code).then(() => {
-            btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-            setTimeout(() => {
-                btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
-            }, 2000);
-        }).catch(() => {
-            showToast('Failed to copy', 'error');
-        });
-    };
+    // ============================================
+    // Initialize the application
+    // ============================================
+    
+    init();
 });
