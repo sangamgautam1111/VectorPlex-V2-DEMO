@@ -1,11 +1,11 @@
-// VectorPlex V2 - Chat Script (Complete)
+// VectorPlex Demo Model - Chat Script (Complete)
 document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Configuration & State
     // ============================================
-    
+
     const SESSION_ID = window.SESSION_ID || getSessionIdFromUrl();
-    
+
     const STATE = {
         messages: [],
         isProcessing: false,
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // DOM Elements
     // ============================================
-    
+
     const elements = {
         chatMessages: document.getElementById('chatMessages'),
         welcomeScreen: document.getElementById('welcomeScreen'),
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Initialization
     // ============================================
-    
+
     function init() {
         setupEventListeners();
         setupTextarea();
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Event Listeners
     // ============================================
-    
+
     function setupEventListeners() {
         // Send message
         elements.sendBtn?.addEventListener('click', sendMessage);
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Textarea Functions
     // ============================================
-    
+
     function setupTextarea() {
         if (!elements.messageInput) return;
         autoResizeTextarea();
@@ -202,9 +202,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ============================================
-    // Speech Synthesis (Listen Feature)
+    // Speech Synthesis - Indian Female Voice
     // ============================================
-    
+
     function setupSpeechSynthesis() {
         if (!('speechSynthesis' in window)) {
             console.warn('Speech synthesis not supported');
@@ -214,40 +214,117 @@ document.addEventListener('DOMContentLoaded', () => {
         function loadVoices() {
             const voices = speechSynthesis.getVoices();
             
-            // Prefer natural, high-quality voices (like Gemini style)
+            if (voices.length === 0) {
+                return; // Wait for voices to load
+            }
+
+            console.log('Available voices:', voices.map(v => `${v.name} (${v.lang})`));
+
+            // Priority list: Indian female voices first, then other quality female voices
+            // Ordered by preference for clear, melodious, confident sound
             const preferredVoices = [
-                'Google US English',
-                'Google UK English Female',
-                'Google UK English Male',
-                'Microsoft Zira Desktop',
-                'Microsoft David Desktop',
-                'Samantha',
-                'Alex',
-                'Daniel',
-                'Karen',
-                'Moira',
-                'Tessa',
-                'Veena',
-                'Victoria',
-                'Fiona'
+                // Indian English Female Voices (Top Priority)
+                'Microsoft Heera',           // Windows - Indian English Female (excellent)
+                'Microsoft Heera Online',    // Windows Online - Indian English Female
+                'Microsoft Heera Desktop',   // Windows Desktop - Indian English Female
+                'Google हिन्दी',              // Google Hindi Female
+                'Lekha',                     // Apple - Indian English Female
+                'Veena',                     // Apple - Indian English Female (clear & confident)
+                'Priya',                     // Indian Female
+                'Neerja',                    // Indian Female
+                'Raveena',                   // Indian Female
+                'Aditi',                     // Amazon Polly - Indian English Female
+                
+                // High-Quality Female Voices (Fallback - still melodious)
+                'Google UK English Female',  // Clear British female
+                'Google US English Female',  // Clear American female
+                'Microsoft Zira',            // Windows - US Female (very clear)
+                'Microsoft Zira Desktop',    // Windows Desktop
+                'Microsoft Zira Online',     // Windows Online
+                'Samantha',                  // Apple - US Female (natural)
+                'Karen',                     // Apple - Australian Female
+                'Moira',                     // Apple - Irish Female (melodious)
+                'Tessa',                     // Apple - South African Female
+                'Fiona',                     // Apple - Scottish Female
+                'Victoria',                  // Apple - US Female
+                'Allison',                   // US Female
+                'Ava',                       // US Female (premium)
+                'Susan',                     // UK Female
+                'Kate',                      // UK Female
+                
+                // Generic Female (Last Resort)
+                'Female',
+                'Woman'
             ];
 
             // Find the best available voice
+            STATE.selectedVoice = null;
+
+            // First pass: Look for exact matches
             for (const preferred of preferredVoices) {
-                const voice = voices.find(v => v.name.includes(preferred));
+                const voice = voices.find(v => 
+                    v.name.toLowerCase().includes(preferred.toLowerCase())
+                );
                 if (voice) {
                     STATE.selectedVoice = voice;
-                    console.log('Selected voice:', voice.name);
+                    console.log('✅ Selected voice:', voice.name, `(${voice.lang})`);
                     break;
                 }
             }
 
-            // Fallback to first English voice
+            // Second pass: Look for Indian English voices
             if (!STATE.selectedVoice) {
-                STATE.selectedVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
-                if (STATE.selectedVoice) {
-                    console.log('Fallback voice:', STATE.selectedVoice.name);
+                const indianVoice = voices.find(v => 
+                    (v.lang === 'en-IN' || v.lang.startsWith('en-IN') || v.lang === 'hi-IN') &&
+                    (v.name.toLowerCase().includes('female') || 
+                     !v.name.toLowerCase().includes('male'))
+                );
+                if (indianVoice) {
+                    STATE.selectedVoice = indianVoice;
+                    console.log('✅ Selected Indian voice:', indianVoice.name);
                 }
+            }
+
+            // Third pass: Any female English voice
+            if (!STATE.selectedVoice) {
+                const femaleVoice = voices.find(v => 
+                    v.lang.startsWith('en') &&
+                    (v.name.toLowerCase().includes('female') ||
+                     v.name.toLowerCase().includes('woman') ||
+                     v.name.toLowerCase().includes('zira') ||
+                     v.name.toLowerCase().includes('samantha') ||
+                     v.name.toLowerCase().includes('karen') ||
+                     v.name.toLowerCase().includes('victoria') ||
+                     v.name.toLowerCase().includes('heera') ||
+                     v.name.toLowerCase().includes('veena'))
+                );
+                if (femaleVoice) {
+                    STATE.selectedVoice = femaleVoice;
+                    console.log('✅ Selected female voice:', femaleVoice.name);
+                }
+            }
+
+            // Fourth pass: Any English voice that's not explicitly male
+            if (!STATE.selectedVoice) {
+                const englishVoice = voices.find(v => 
+                    v.lang.startsWith('en') &&
+                    !v.name.toLowerCase().includes('male') &&
+                    !v.name.toLowerCase().includes('david') &&
+                    !v.name.toLowerCase().includes('james') &&
+                    !v.name.toLowerCase().includes('daniel') &&
+                    !v.name.toLowerCase().includes('george') &&
+                    !v.name.toLowerCase().includes('rishi')
+                );
+                if (englishVoice) {
+                    STATE.selectedVoice = englishVoice;
+                    console.log('✅ Fallback voice:', englishVoice.name);
+                }
+            }
+
+            // Last resort: First available voice
+            if (!STATE.selectedVoice && voices.length > 0) {
+                STATE.selectedVoice = voices[0];
+                console.log('⚠️ Using default voice:', STATE.selectedVoice.name);
             }
         }
 
@@ -256,8 +333,21 @@ document.addEventListener('DOMContentLoaded', () => {
             loadVoices();
         }
         
-        // Also listen for voices changed event
+        // Also listen for voices changed event (required for some browsers)
         speechSynthesis.onvoiceschanged = loadVoices;
+
+        // Retry loading voices after a short delay (some browsers need this)
+        setTimeout(() => {
+            if (!STATE.selectedVoice) {
+                loadVoices();
+            }
+        }, 100);
+
+        setTimeout(() => {
+            if (!STATE.selectedVoice) {
+                loadVoices();
+            }
+        }, 500);
     }
 
     function speakText(text, button) {
@@ -272,23 +362,43 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Clean text for speaking - remove code, markdown, etc.
+        // Clean text for speaking - remove code, markdown, special characters
         const cleanText = text
-            .replace(/```[\s\S]*?```/g, 'Code block omitted.')
+            // Remove code blocks
+            .replace(/```[\s\S]*?```/g, '. Code block omitted. ')
+            // Remove inline code
             .replace(/`([^`]+)`/g, '$1')
+            // Remove bold/italic markers but keep text
             .replace(/\*\*([^*]+)\*\*/g, '$1')
             .replace(/\*([^*]+)\*/g, '$1')
+            // Remove headers markers
             .replace(/#{1,6}\s/g, '')
+            // Remove markdown links but keep text
             .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            // Remove HTML tags
             .replace(/<[^>]*>/g, '')
+            // Fix HTML entities
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
             .replace(/&gt;/g, '>')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&quot;/g, '"')
+            // Remove bullet points and list markers
+            .replace(/^[\s]*[-•*]\s/gm, '')
+            .replace(/^[\s]*\d+\.\s/gm, '')
+            // Clean up emojis (keep some, remove others that sound weird)
+            .replace(/[🎯🧠💡🔍📝✅❌⚠️🎪🎨🎭🚀💻📚🔢🔬🌟✨💎🎉]/g, '')
+            // Fix multiple spaces and newlines
             .replace(/\n+/g, '. ')
             .replace(/\s+/g, ' ')
+            // Remove URLs
+            .replace(/https?:\/\/[^\s]+/g, 'link')
+            // Clean up multiple periods
+            .replace(/\.+/g, '.')
+            .replace(/\.\s*\./g, '.')
             .trim();
 
-        if (!cleanText) {
+        if (!cleanText || cleanText.length < 2) {
             showToast('No text to speak', 'warning');
             return;
         }
@@ -304,10 +414,45 @@ document.addEventListener('DOMContentLoaded', () => {
             STATE.currentUtterance.voice = STATE.selectedVoice;
         }
         
-        // Natural speaking settings
-        STATE.currentUtterance.rate = 1.0;
-        STATE.currentUtterance.pitch = 1.0;
-        STATE.currentUtterance.volume = 1.0;
+        // Voice settings for melodious, clear, confident sound
+        // These settings are optimized for a professional female voice
+        STATE.currentUtterance.rate = 0.95;      // Slightly slower for clarity
+        STATE.currentUtterance.pitch = 1.1;      // Slightly higher for feminine tone
+        STATE.currentUtterance.volume = 1.0;     // Full volume
+
+        // Adjust settings based on voice type for best quality
+        if (STATE.selectedVoice) {
+            const voiceName = STATE.selectedVoice.name.toLowerCase();
+            
+            // Indian voices - adjust for natural flow
+            if (voiceName.includes('heera') || 
+                voiceName.includes('veena') || 
+                voiceName.includes('lekha') ||
+                voiceName.includes('priya') ||
+                STATE.selectedVoice.lang === 'en-IN') {
+                STATE.currentUtterance.rate = 0.92;   // Slightly slower for Indian accent clarity
+                STATE.currentUtterance.pitch = 1.05;  // Natural pitch
+                console.log('🎤 Using Indian voice settings');
+            }
+            // Google voices - tend to be faster
+            else if (voiceName.includes('google')) {
+                STATE.currentUtterance.rate = 0.9;
+                STATE.currentUtterance.pitch = 1.0;
+            }
+            // Microsoft voices - good quality
+            else if (voiceName.includes('zira') || voiceName.includes('microsoft')) {
+                STATE.currentUtterance.rate = 0.95;
+                STATE.currentUtterance.pitch = 1.05;
+            }
+            // Apple voices - natural sounding
+            else if (voiceName.includes('samantha') || 
+                     voiceName.includes('karen') ||
+                     voiceName.includes('moira') ||
+                     voiceName.includes('victoria')) {
+                STATE.currentUtterance.rate = 1.0;
+                STATE.currentUtterance.pitch = 1.0;
+            }
+        }
 
         STATE.currentUtterance.onstart = () => {
             STATE.isSpeaking = true;
@@ -315,6 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.innerHTML = '<i class="fas fa-stop"></i> Stop';
                 button.classList.add('speaking');
             }
+            console.log('🔊 Speaking started with voice:', STATE.selectedVoice?.name || 'default');
         };
 
         STATE.currentUtterance.onend = () => {
@@ -324,6 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.innerHTML = '<i class="fas fa-volume-up"></i> Listen';
                 button.classList.remove('speaking');
             }
+            console.log('🔇 Speaking ended');
         };
 
         STATE.currentUtterance.onerror = (e) => {
@@ -334,13 +481,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.innerHTML = '<i class="fas fa-volume-up"></i> Listen';
                 button.classList.remove('speaking');
             }
-            if (e.error !== 'canceled') {
+            if (e.error !== 'canceled' && e.error !== 'interrupted') {
                 showToast('Error playing audio', 'error');
             }
         };
 
+        // Chrome bug workaround: pause and resume for long texts
+        STATE.currentUtterance.onpause = () => {
+            console.log('Speech paused');
+        };
+
         // Start speaking
         speechSynthesis.speak(STATE.currentUtterance);
+
+        // Chrome bug: speech stops after ~15 seconds
+        // Workaround: periodically check and resume
+        const chromeBugFix = setInterval(() => {
+            if (!STATE.isSpeaking) {
+                clearInterval(chromeBugFix);
+                return;
+            }
+            if (speechSynthesis.paused) {
+                speechSynthesis.resume();
+            }
+        }, 10000);
+
+        // Store interval reference for cleanup
+        STATE.currentUtterance.chromeBugFix = chromeBugFix;
     }
 
     function stopSpeaking() {
@@ -348,6 +515,11 @@ document.addEventListener('DOMContentLoaded', () => {
             speechSynthesis.cancel();
         }
         STATE.isSpeaking = false;
+        
+        // Clear chrome bug fix interval
+        if (STATE.currentUtterance?.chromeBugFix) {
+            clearInterval(STATE.currentUtterance.chromeBugFix);
+        }
         STATE.currentUtterance = null;
         
         // Reset all listen buttons
@@ -355,12 +527,14 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = '<i class="fas fa-volume-up"></i> Listen';
             btn.classList.remove('speaking');
         });
+        
+        console.log('🔇 Speaking stopped');
     }
 
     // ============================================
     // Message Handling
     // ============================================
-    
+
     async function sendMessage() {
         const text = elements.messageInput?.value?.trim();
         if (!text || STATE.isProcessing || !SESSION_ID) return;
@@ -579,7 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Chat History
     // ============================================
-    
+
     async function loadChatHistory() {
         if (!SESSION_ID) return;
 
@@ -626,9 +800,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Leave Chat
     // ============================================
-    
+
     async function leaveChat() {
         try {
+            // Stop any speaking
+            stopSpeaking();
+            
             // Cleanup session on server
             await fetch(`/api/session/${SESSION_ID}/cleanup`, {
                 method: 'POST'
@@ -653,7 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Theme
     // ============================================
-    
+
     function loadTheme() {
         const savedTheme = localStorage.getItem('vectorplex-theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
@@ -679,7 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Sidebar
     // ============================================
-    
+
     function toggleSidebar() {
         elements.sidebar?.classList.toggle('active');
     }
@@ -687,7 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Modals
     // ============================================
-    
+
     function openModal(modal) {
         if (modal) {
             modal.classList.add('active');
@@ -705,7 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Export Functions
     // ============================================
-    
+
     function exportChat(format) {
         if (STATE.messages.length === 0) {
             showToast('No messages to export', 'warning');
@@ -749,11 +926,12 @@ document.addEventListener('DOMContentLoaded', () => {
         md += `---\n\n`;
 
         STATE.messages.forEach(msg => {
-            const role = msg.type === 'user' ? '👤 **You**' : '🤖 **VectorPlex**';
+            const role = msg.type === 'user' ? '**You**' : '**VectorPlex**';
             md += `${role}:\n\n${msg.content}\n\n---\n\n`;
         });
 
-        md += `\n---\n*Exported from VectorPlex AI*`;
+        md += `\n---\n*Exported from VectorPlex Demo Model*\n`;
+        md += `*AI/ML: Sangam Gautam | Frontend: Sushil Yadav*`;
         return md;
     }
 
@@ -773,8 +951,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         txt += `\n${'='.repeat(50)}\n`;
-        txt += `Exported from VectorPlex AI\n`;
-        txt += `Powered by VectorPlex`;
+        txt += `Exported from VectorPlex Demo Model\n`;
+        txt += `AI/ML: Sangam Gautam | Frontend: Sushil Yadav`;
         return txt;
     }
 
@@ -865,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 doc.setPage(i);
                 doc.setFontSize(8);
                 doc.setTextColor(150, 150, 150);
-                doc.text('Powered by VectorPlex', margin, pageHeight - 10);
+                doc.text('VectorPlex Demo Model | AI/ML: Sangam Gautam', margin, pageHeight - 10);
                 doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin - 20, pageHeight - 10);
             }
 
@@ -893,7 +1071,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Toast Notifications
     // ============================================
-    
+
     function showToast(message, type = 'info') {
         const container = elements.toastContainer;
         if (!container) return;
@@ -930,6 +1108,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // Initialize the application
     // ============================================
-    
+
     init();
 });

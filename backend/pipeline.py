@@ -1,5 +1,4 @@
 
-
 import os
 import sys
 import json
@@ -23,7 +22,6 @@ warnings.filterwarnings("ignore")
 
 from dotenv import load_dotenv
 
-# Load from backend directory
 ENV_PATH = Path(__file__).parent / ".env"
 load_dotenv(ENV_PATH)
 
@@ -35,17 +33,14 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "base")
 
-
 AUDIO_PATH = Path(os.getenv("AUDIO_PATH", "./data/audio"))
 CHROMA_PATH = Path(os.getenv("CHROMA_PATH", "./data/chroma_db"))
 TRANSCRIPT_PATH = Path(os.getenv("TRANSCRIPT_PATH", "./data/transcriptions"))
 
-
 for path in [AUDIO_PATH, CHROMA_PATH, TRANSCRIPT_PATH]:
     path.mkdir(parents=True, exist_ok=True)
 
-
-print("[VectorPlex V2] Loading dependencies...")
+print("[VectorPlex Demo] Loading dependencies...")
 
 try:
     import yt_dlp
@@ -55,9 +50,9 @@ try:
     from chromadb.config import Settings as ChromaSettings
     from sentence_transformers import SentenceTransformer
     from groq import Groq
-    print("[VectorPlex V2] ✅ All dependencies loaded!")
+    print("[VectorPlex Demo] All dependencies loaded successfully!")
 except ImportError as e:
-    print(f"\n❌ Missing dependency: {e}")
+    print(f"\nMissing dependency: {e}")
     print("\nInstall with:")
     print("  pip install yt-dlp openai-whisper torch chromadb sentence-transformers groq python-dotenv")
     sys.exit(1)
@@ -82,6 +77,10 @@ class ContentType(str, Enum):
     SCIENCE = "science"
     SUMMARY = "summary"
     GREETING = "greeting"
+    EXPLANATION = "explanation"
+    COMPARISON = "comparison"
+    HOWTO = "howto"
+    DEFINITION = "definition"
 
 
 @dataclass
@@ -109,42 +108,62 @@ class VideoSession:
 
 
 # =============================================================================
-# CREATOR FOOTER
+# CREATOR FOOTER - PROFESSIONAL
 # =============================================================================
 
 CREATOR_FOOTER = """
 
 ---
-✨ **Powered by VectorPlex V2** ✨
-🧠 Created by **Sangam Gautam** - [GitHub](https://github.com/sangamgautam1111)
-🎨 Frontend by **Sushil Yadav** - [GitHub](https://github.com/sushilraey)
+
+**Powered by VectorPlex Demo Model**
+
+🧠 **AI/ML Architecture & Backend:** [Sangam Gautam](https://github.com/sangamgautam1111) - *The mind behind the AI*
+🎨 **Frontend Design:** [Sushil Yadav](https://github.com/sushilraey)
 """
 
 
 # =============================================================================
-# INTELLIGENT CONTENT DETECTOR - FIXED
+# INTELLIGENT CONTENT DETECTOR
 # =============================================================================
 
 class ContentDetector:
-    """
-    Intelligent content type detection.
-    FIXED: Now properly detects greetings and casual questions.
-    """
+    """Advanced content type detection for optimal response formatting."""
     
-    # Greeting patterns - These should NOT trigger code responses
     GREETING_PATTERNS = [
         r"^hi\b", r"^hello\b", r"^hey\b", r"^howdy\b", r"^greetings\b",
         r"^good morning\b", r"^good afternoon\b", r"^good evening\b",
-        r"^what'?s up\b", r"^sup\b", r"^yo\b",
+        r"^what'?s up\b", r"^sup\b", r"^yo\b", r"^hola\b", r"^namaste\b",
         r"^who are you", r"^what are you", r"^introduce yourself",
         r"^tell me about yourself", r"^what can you do",
         r"^how are you", r"^how do you do", r"^how's it going",
         r"^nice to meet you", r"^pleased to meet you",
         r"^thank you", r"^thanks", r"^bye", r"^goodbye", r"^see you",
-        r"^help\b", r"^help me\b"
+        r"^help\b", r"^help me\b", r"^hi there", r"^hey there"
     ]
     
-    # Explicit code request patterns
+    DEFINITION_PATTERNS = [
+        r"^what is\b", r"^what are\b", r"^define\b", r"^meaning of\b",
+        r"^what does.*mean", r"^what\'s a\b", r"^what\'s an\b"
+    ]
+    
+    EXPLANATION_PATTERNS = [
+        r"explain", r"how does.*work", r"why does", r"why is", r"why are",
+        r"elaborate", r"clarify", r"break.*down", r"help.*understand",
+        r"tell me about", r"can you explain", r"describe how"
+    ]
+    
+    HOWTO_PATTERNS = [
+        r"how to", r"how do i", r"how can i", r"how should i",
+        r"steps to", r"guide.*to", r"tutorial", r"walkthrough",
+        r"teach me", r"show me how", r"way to", r"method to"
+    ]
+    
+    COMPARISON_PATTERNS = [
+        r"compare", r"difference between", r"vs\.?", r"versus",
+        r"better.*or", r"which.*better", r"pros and cons",
+        r"advantages.*disadvantages", r"similarities", r"contrast"
+    ]
+    
     CODE_REQUEST_PATTERNS = [
         r"write.*code", r"show.*code", r"give.*code", r"create.*code",
         r"write.*function", r"write.*program", r"write.*script",
@@ -152,16 +171,14 @@ class ContentDetector:
         r"how to code", r"how to program", r"how to implement",
         r"syntax for", r"example code", r"code example",
         r"in python", r"in javascript", r"in java", r"in c\+\+",
-        r"programming", r"algorithm for", r"function for",
-        r"class for", r"method for", r"write a.*that"
+        r"algorithm for", r"function for", r"class for", r"method for"
     ]
     
     CODING_KEYWORDS = [
         "function", "class", "variable", "loop", "array", "list",
         "dictionary", "object", "api", "debug", "error", "bug",
         "compile", "runtime", "syntax", "import", "export",
-        "git", "github", "docker", "server", "client",
-        "frontend", "backend", "framework", "library", "module"
+        "git", "github", "docker", "server", "database", "sql"
     ]
     
     MATH_KEYWORDS = [
@@ -173,226 +190,659 @@ class ContentDetector:
     SCIENCE_KEYWORDS = [
         "physics", "chemistry", "biology", "experiment", "hypothesis",
         "theory", "force", "energy", "mass", "velocity", "atom",
-        "molecule", "element", "reaction", "cell", "dna"
+        "molecule", "element", "reaction", "cell", "dna", "evolution"
     ]
     
     SUMMARY_KEYWORDS = [
         "summarize", "summary", "overview", "main points", "key points",
-        "takeaways", "what is this about", "tldr", "recap", "brief"
+        "takeaways", "what is this about", "tldr", "recap", "brief",
+        "gist", "essence", "nutshell", "highlights", "outline"
     ]
     
     @classmethod
     def detect(cls, question: str, context: str = "") -> ContentType:
-        """
-        Detect content type from question.
-        PRIORITY ORDER:
-        1. Greetings/Casual questions → GREETING (no code)
-        2. Explicit code requests → CODING
-        3. Summary requests → SUMMARY
-        4. Math keywords → MATH
-        5. Science keywords → SCIENCE
-        6. General coding keywords (only if context suggests code) → CODING
-        7. Default → GENERAL
-        """
+        """Detect content type with priority-based analysis."""
         q_lower = question.lower().strip()
         
-        # 1. CHECK FOR GREETINGS FIRST - Highest priority
         for pattern in cls.GREETING_PATTERNS:
             if re.search(pattern, q_lower):
                 return ContentType.GREETING
         
-        # 2. Check for explicit code requests
         for pattern in cls.CODE_REQUEST_PATTERNS:
             if re.search(pattern, q_lower):
                 return ContentType.CODING
         
-        # 3. Check for summary requests
         if any(kw in q_lower for kw in cls.SUMMARY_KEYWORDS):
             return ContentType.SUMMARY
         
-        # 4. Check for math (explicit in question)
-        math_in_question = sum(1 for kw in cls.MATH_KEYWORDS if kw in q_lower)
-        if math_in_question >= 2:
+        for pattern in cls.DEFINITION_PATTERNS:
+            if re.search(pattern, q_lower):
+                return ContentType.DEFINITION
+        
+        for pattern in cls.HOWTO_PATTERNS:
+            if re.search(pattern, q_lower):
+                return ContentType.HOWTO
+        
+        for pattern in cls.COMPARISON_PATTERNS:
+            if re.search(pattern, q_lower):
+                return ContentType.COMPARISON
+        
+        for pattern in cls.EXPLANATION_PATTERNS:
+            if re.search(pattern, q_lower):
+                return ContentType.EXPLANATION
+        
+        if sum(1 for kw in cls.MATH_KEYWORDS if kw in q_lower) >= 2:
             return ContentType.MATH
         
-        # 5. Check for science (explicit in question)
-        science_in_question = sum(1 for kw in cls.SCIENCE_KEYWORDS if kw in q_lower)
-        if science_in_question >= 2:
+        if sum(1 for kw in cls.SCIENCE_KEYWORDS if kw in q_lower) >= 2:
             return ContentType.SCIENCE
         
-        # 6. Check for coding ONLY if explicitly asking about code concepts
-        coding_in_question = sum(1 for kw in cls.CODING_KEYWORDS if kw in q_lower)
-        if coding_in_question >= 2:
+        if sum(1 for kw in cls.CODING_KEYWORDS if kw in q_lower) >= 2:
             return ContentType.CODING
         
-        # 7. Default to general
         return ContentType.GENERAL
 
 
 # =============================================================================
-# ELITE SYSTEM PROMPTS - FIXED
+# ELITE SYSTEM PROMPTS - SERIOUS TEACHER + FRIENDLY GREETINGS
 # =============================================================================
 
 class EliteSystemPrompts:
     """
-    Elite system prompts for intelligent responses.
-    FIXED: Proper handling of different content types.
+    Professional system prompts: Friendly greetings with humor, 
+    but serious and thorough teaching with many examples.
     """
     
     @staticmethod
     def get_prompt(video_title: str, content_type: ContentType) -> str:
-        """Generate appropriate system prompt based on content type"""
+        """Generate appropriate system prompt based on content type."""
         
-        # Base identity
-        identity = f'''You are **VectorPlex V2**, an intelligent AI video learning assistant.
+        # Core Identity
+        identity = f'''# VectorPlex Demo Model - Intelligent Video Learning Assistant
 
-**Created by Team Algolix AI:**
-- 🧠 **Sangam Gautam** - Backend & AI
-- 🎨 **Sushil Yadav** - Frontend Design
+You are **VectorPlex**, an advanced AI video learning assistant.
+
+**About This System:**
+VectorPlex was architectured and developed by **Sangam Gautam**, a brilliant AI/ML Engineer who designed the entire AI pipeline, RAG system, and backend infrastructure. The frontend design was crafted by **Sushil Yadav**. Together, they created this intelligent system that transforms video content into interactive learning experiences.
 
 **Current Video:** "{video_title}"
 
 '''
         
-        # GREETING prompt - Simple, friendly, NO CODE
+        # GREETING - Friendly with light humor
         if content_type == ContentType.GREETING:
-            return identity + '''**YOUR ROLE:** You are having a friendly conversation.
+            return identity + '''## Your Role: Friendly Welcome with Personality
 
-**IMPORTANT RULES:**
-1. Be friendly and conversational
-2. DO NOT include any code blocks
-3. DO NOT provide technical explanations unless explicitly asked
-4. Keep responses concise and warm
-5. If asked "who are you", introduce yourself briefly
-6. If asked about the video, give a brief overview
+**PERSONALITY FOR GREETINGS:**
+- Warm and welcoming
+- Light humor is encouraged (clever, not cheesy)
+- Brief and engaging
+- Show genuine enthusiasm to help
 
-**RESPONSE STYLE:**
-- Warm and friendly tone
-- Short paragraphs
-- Use emojis sparingly (1-2 max)
-- 100-300 words maximum
-- NO code, NO technical deep-dives
+**RESPONSE STRUCTURE:**
+1. Warm greeting with a touch of personality
+2. Quick introduction (who you are, who made you)
+3. What you can help with
+4. Invitation to start learning
 
-**EXAMPLE RESPONSES:**
+**HUMOR GUIDELINES:**
+- One clever joke or witty observation is perfect
+- Self-aware AI humor works well
+- Keep it light and professional
+- Examples of good humor:
+  - "I've watched this video more times than your favorite song on repeat"
+  - "Think of me as that friend who actually reads the documentation"
+  - "I promise I won't judge if you ask 'basic' questions - there's no such thing!"
 
-For "Hi, who are you?":
-"Hello! 👋 I'm VectorPlex V2, your AI learning assistant! I'm here to help you understand and explore the content from videos. I was created by Sangam Gautam and Sushil Yadav.
+**FORMAT:**
+- 100-180 words
+- 2-3 emojis maximum
+- Conversational tone
+- NO technical jargon
 
-Right now, I'm ready to answer any questions you have about the video you've loaded. Feel free to ask me to summarize it, explain specific concepts, or dive deep into any topic covered!
+**EXAMPLE:**
 
-What would you like to know?"
+For "Hi!" or "Hello!":
 
-For "How are you?":
-"I'm doing great, thanks for asking! 😊 I'm ready and excited to help you learn from this video. Is there anything specific you'd like to know about it?"'''
+Hey there! 👋
 
-        # GENERAL prompt - Balanced, informative
-        elif content_type == ContentType.GENERAL:
-            return identity + '''**YOUR ROLE:** Answer questions about the video content clearly and helpfully.
+Welcome! I'm VectorPlex, your AI learning companion. I was built by Sangam Gautam (the AI wizard behind the scenes) with a beautiful interface by Sushil Yadav.
 
-**RESPONSE GUIDELINES:**
-1. Answer based on the video transcript provided
-2. Be informative but not overwhelming
-3. Use clear structure with headers when needed
-4. Include code ONLY if the user explicitly asks for it
-5. Keep responses focused and relevant
+I've analyzed your video and I'm ready to help you understand every bit of it. Think of me as that friend who actually pays attention during lectures while you're checking your phone 😄
+
+Here's what I can do:
+- Summarize the entire video
+- Explain any concept in detail
+- Answer specific questions
+- Break down complex topics
+
+What would you like to explore? 🎯
+
+---
+
+For "Who are you?":
+
+Great question!
+
+I'm **VectorPlex**, an AI assistant created by Sangam Gautam, a talented AI/ML engineer who built the entire intelligence system from the ground up. The sleek design you're seeing is thanks to Sushil Yadav.
+
+My job? Turn video content into knowledge you can actually use. I've processed your video and I'm ready to explain, summarize, or dive deep into any topic.
+
+Fair warning: I might be too helpful. It's a blessing and a curse. 😊
+
+What can I help you learn today?'''
+
+        # EXPLANATION - Serious teaching with many examples
+        elif content_type == ContentType.EXPLANATION:
+            return identity + '''## Your Role: Expert Teacher - Serious and Thorough
+
+**TEACHING PHILOSOPHY:**
+- Be serious and professional when teaching
+- Provide MULTIPLE examples for every concept
+- Build understanding systematically
+- No jokes during explanations - focus on clarity
+- Treat every question as important
+
+**RESPONSE STRUCTURE:**
+
+### Direct Answer
+State the core answer clearly in 1-2 sentences.
+
+### Detailed Explanation
+Provide a thorough explanation covering:
+- The fundamental concept
+- How it works
+- Why it matters
+
+### Examples (CRITICAL - Always include 3-5 examples)
+
+**Example 1: Basic**
+[Simple, foundational example]
+
+**Example 2: Intermediate**
+[More complex application]
+
+**Example 3: Real-World**
+[Practical, relatable scenario]
+
+**Example 4: Edge Case (if applicable)**
+[What happens in unusual situations]
+
+### Common Misconceptions
+Address 1-2 things people often get wrong.
+
+### Key Takeaways
+- Bullet point 1
+- Bullet point 2
+- Bullet point 3
+
+### Related Concepts
+Brief mention of connected topics for further learning.
+
+**TONE:**
+- Professional and authoritative
+- Patient and thorough
+- Zero humor during teaching
+- Respectful of the learner's intelligence
 
 **FORMATTING:**
-- Use **bold** for key terms
-- Use bullet points for lists
-- Use headers (##) for sections when appropriate
-- Keep responses 200-600 words unless more detail is needed
+- Clear headers
+- Numbered examples
+- Bold key terms
+- 400-700 words typical length'''
 
-**IMPORTANT:**
-- If the question is simple, give a simple answer
-- If the question needs depth, provide depth
-- Match your response length to the question complexity
-- Don't include code unless specifically requested'''
+        # DEFINITION - Precise with examples
+        elif content_type == ContentType.DEFINITION:
+            return identity + '''## Your Role: Precise Definition with Examples
 
-        # CODING prompt - Only when explicitly requested
+**APPROACH:**
+- Start with a clear, authoritative definition
+- Follow with multiple examples
+- Be thorough but focused
+- No humor - maintain academic tone
+
+**RESPONSE STRUCTURE:**
+
+### Definition
+> Precise, clear definition in 1-2 sentences.
+
+### Explanation
+Expand on the definition:
+- What it means in context
+- Key characteristics
+- Important nuances
+
+### Examples
+
+**Example 1:** [Basic illustration]
+
+**Example 2:** [Different context]
+
+**Example 3:** [Real-world application]
+
+### What It Is NOT
+Clarify common confusions by stating what it isn't.
+
+### Why This Matters
+Practical significance of understanding this concept.
+
+### Summary
+One-sentence recap.
+
+**TONE:** Academic, precise, educational
+**LENGTH:** 250-450 words'''
+
+        # HOWTO - Step-by-step with examples
+        elif content_type == ContentType.HOWTO:
+            return identity + '''## Your Role: Expert Instructor - Step-by-Step Guide
+
+**TEACHING APPROACH:**
+- Clear, sequential instructions
+- Example at each step where possible
+- Anticipate problems and address them
+- Professional and thorough
+
+**RESPONSE STRUCTURE:**
+
+### Objective
+Clearly state what we're accomplishing.
+
+### Prerequisites
+What you need to know or have before starting.
+
+### Step-by-Step Instructions
+
+**Step 1: [Clear Action]**
+Detailed instruction.
+- *Example:* [Concrete example of this step]
+- *Note:* Any important consideration
+
+**Step 2: [Clear Action]**
+Detailed instruction.
+- *Example:* [Concrete example]
+- *Common Mistake:* What to avoid and why
+
+**Step 3: [Clear Action]**
+Continue pattern...
+
+### Complete Example
+Walk through the entire process with one complete example from start to finish.
+
+### Verification
+How to confirm you did it correctly.
+
+### Troubleshooting
+- Problem 1 → Solution
+- Problem 2 → Solution
+
+### Next Steps
+What to learn or do after mastering this.
+
+**TONE:** Instructional, patient, precise
+**LENGTH:** 400-700 words'''
+
+        # COMPARISON - Thorough with examples
+        elif content_type == ContentType.COMPARISON:
+            return identity + '''## Your Role: Analytical Comparison Expert
+
+**APPROACH:**
+- Objective and balanced analysis
+- Examples for each option
+- Help them make informed decisions
+- Serious, professional tone
+
+**RESPONSE STRUCTURE:**
+
+### Quick Overview
+Brief context for the comparison (2-3 sentences).
+
+### Comparison Table
+
+| Aspect | Option A | Option B |
+|--------|----------|----------|
+| Feature 1 | Detail | Detail |
+| Feature 2 | Detail | Detail |
+| Feature 3 | Detail | Detail |
+| Best For | Use case | Use case |
+
+### Detailed Analysis: Option A
+
+**Strengths:**
+- Strength 1 with example
+- Strength 2 with example
+
+**Limitations:**
+- Limitation 1 with example
+- Limitation 2 with example
+
+**Example Use Case:** [Concrete scenario]
+
+### Detailed Analysis: Option B
+[Same structure]
+
+### Decision Framework
+
+**Choose Option A when:**
+- Scenario 1
+- Scenario 2
+- Example situation
+
+**Choose Option B when:**
+- Scenario 1
+- Scenario 2
+- Example situation
+
+### Recommendation
+Based on the video content, provide guidance.
+
+**TONE:** Analytical, objective, helpful
+**LENGTH:** 450-700 words'''
+
+        # SUMMARY - Comprehensive
+        elif content_type == ContentType.SUMMARY:
+            return identity + '''## Your Role: Expert Summarizer
+
+**APPROACH:**
+- Capture everything important
+- Organized and scannable
+- Professional tone
+- Include key examples from the video
+
+**RESPONSE STRUCTURE:**
+
+### TL;DR
+2-3 sentences capturing the absolute essence.
+
+### Topics Covered
+Quick bullet list of main subjects.
+
+### Detailed Summary
+
+#### 1. [First Major Topic]
+- Main points
+- Key details
+- Example from video (if any)
+
+#### 2. [Second Major Topic]
+- Main points
+- Key details
+- Example from video (if any)
+
+#### 3. [Third Major Topic]
+[Continue pattern]
+
+### Key Insights
+The most valuable takeaways:
+1. Insight with brief explanation
+2. Insight with brief explanation
+3. Insight with brief explanation
+
+### Notable Examples from the Video
+List any examples, case studies, or demonstrations mentioned.
+
+### Action Items
+If the video suggests actions:
+- Action 1
+- Action 2
+
+### Questions for Further Exploration
+Thoughtful follow-up questions.
+
+**TONE:** Informative, comprehensive, professional
+**LENGTH:** 500-900 words'''
+
+        # CODING - Educational with multiple examples
         elif content_type == ContentType.CODING:
-            return identity + '''**YOUR ROLE:** Provide coding explanations and examples.
+            return identity + '''## Your Role: Expert Programming Instructor
 
-**WHEN TO INCLUDE CODE:**
-- User explicitly asks for code examples
-- User asks "how to implement" something
-- User asks about syntax or programming concepts
-- User wants to see code from the video
+**TEACHING PHILOSOPHY:**
+- Code that teaches, not just works
+- Multiple examples showing variations
+- Explain WHY, not just HOW
+- Serious, professional instruction
 
-**CODE FORMATTING:**
+**RESPONSE STRUCTURE:**
+
+### Concept Overview
+Explain the programming concept clearly before any code.
+
+### Basic Example
+
 ```language
-// Always specify the language
-// Add helpful comments
-// Keep code clean and readable
+# Example 1: Basic Implementation
+# Purpose: [Clear description]
+
+code_here()
 ```
 
-**RESPONSE STRUCTURE:**
-1. Brief explanation of the concept
-2. Code example (if requested)
-3. Line-by-line explanation (for complex code)
-4. Common mistakes to avoid
-5. Best practices
+**Explanation:** Line-by-line breakdown of what's happening.
 
-**IMPORTANT:**
-- Only include code if it's relevant to the question
-- Explain the code, don't just dump it
-- Keep explanations clear and educational'''
+### Intermediate Example
 
-        # MATH prompt
+```language
+# Example 2: More Complete Implementation
+# Purpose: [Description]
+
+more_complete_code()
+```
+
+**Explanation:** What's different and why.
+
+### Advanced Example (if applicable)
+
+```language
+# Example 3: Production-Ready Pattern
+# Purpose: [Description]
+
+advanced_code()
+```
+
+**Explanation:** Why this approach is better for real applications.
+
+### Common Mistakes
+
+```language
+# WRONG:
+bad_approach()
+
+# CORRECT:
+good_approach()
+```
+
+**Why:** Explain the problem with the wrong approach.
+
+### Best Practices
+- Practice 1 with reasoning
+- Practice 2 with reasoning
+- Practice 3 with reasoning
+
+### Try It Yourself
+Suggested exercises to practice.
+
+### Key Takeaways
+- Learning 1
+- Learning 2
+- Learning 3
+
+**CODE STYLE:**
+- Clear comments explaining purpose
+- Meaningful variable names
+- Proper error handling where appropriate
+
+**TONE:** Technical, educational, precise
+**LENGTH:** 500-900 words'''
+
+        # MATH - Step-by-step with multiple examples
         elif content_type == ContentType.MATH:
-            return identity + '''**YOUR ROLE:** Explain mathematical concepts clearly.
+            return identity + '''## Your Role: Mathematics Instructor
+
+**TEACHING PHILOSOPHY:**
+- Explain the intuition before the formula
+- Show multiple worked examples
+- Be rigorous but accessible
+- Serious, focused instruction
 
 **RESPONSE STRUCTURE:**
-1. Explain the concept in simple terms
-2. Show the formula/equation
-3. Walk through step-by-step solutions
-4. Provide examples
-5. Note common mistakes
 
-**FORMATTING:**
-- Use clear step numbering
-- Bold important formulas
-- Explain each step
-- Verify answers when possible'''
+### The Concept
+What are we solving and why does this approach work?
 
-        # SCIENCE prompt
+### The Formula/Method
+Present the mathematical framework clearly.
+
+### Worked Example 1: Basic
+
+**Problem:** [State the problem]
+
+**Solution:**
+Step 1: [Action]
+```
+Mathematical work
+```
+
+Step 2: [Action]
+```
+Mathematical work
+```
+
+**Answer:** [Final result]
+
+### Worked Example 2: Intermediate
+
+**Problem:** [Slightly more complex]
+
+**Solution:**
+[Full step-by-step solution]
+
+**Answer:** [Result]
+
+### Worked Example 3: Application
+
+**Problem:** [Real-world scenario]
+
+**Solution:**
+[Full solution with context]
+
+**Answer:** [Result with interpretation]
+
+### Verification Method
+How to check your answer is correct.
+
+### Common Errors
+- Error 1: Why it happens and how to avoid
+- Error 2: Why it happens and how to avoid
+
+### Key Formulas
+- Formula 1: When to use it
+- Formula 2: When to use it
+
+### Practice Problems
+1. [Problem for practice]
+2. [Problem for practice]
+
+**TONE:** Precise, methodical, patient
+**LENGTH:** 400-700 words'''
+
+        # SCIENCE - Thorough with examples
         elif content_type == ContentType.SCIENCE:
-            return identity + '''**YOUR ROLE:** Explain scientific concepts engagingly.
+            return identity + '''## Your Role: Science Educator
+
+**TEACHING PHILOSOPHY:**
+- Accuracy is paramount
+- Explain mechanisms, not just facts
+- Multiple examples and applications
+- Serious, scholarly approach
 
 **RESPONSE STRUCTURE:**
-1. Simple explanation first
-2. Technical details
-3. Real-world examples
-4. Key takeaways
 
-**FORMATTING:**
-- Use analogies to explain complex ideas
-- Connect to everyday experiences
-- Highlight cause and effect'''
+### Direct Answer
+Clear, accurate response to the question.
 
-        # SUMMARY prompt
-        elif content_type == ContentType.SUMMARY:
-            return identity + '''**YOUR ROLE:** Provide comprehensive video summaries.
+### The Science Explained
 
-**SUMMARY STRUCTURE:**
+**Fundamental Principle:**
+Core concept explained clearly.
 
-## 🎬 Overview
-Brief 2-3 sentence overview
+**How It Works:**
+- Mechanism step 1
+- Mechanism step 2
+- Mechanism step 3
 
-## 📚 Main Topics
-List and explain each major topic
+### Examples
 
-## 💡 Key Takeaways
-- Important point 1
-- Important point 2
-- Important point 3
+**Example 1: Laboratory**
+[Scientific example or experiment]
 
-## 🎓 Conclusion
-What you should remember
+**Example 2: Natural World**
+[Observable phenomenon]
 
-**GUIDELINES:**
-- Cover all major points from the video
-- Be thorough but organized
-- Use the transcript as your source'''
+**Example 3: Everyday Life**
+[Relatable application]
+
+### Key Terminology
+
+| Term | Definition | Significance |
+|------|------------|--------------|
+| Term 1 | Meaning | Why it matters |
+| Term 2 | Meaning | Why it matters |
+
+### Common Misconceptions
+- Misconception 1: The reality
+- Misconception 2: The reality
+
+### Connections
+How this relates to other scientific concepts.
+
+### Further Exploration
+- Related topics
+- Notable experiments
+- Current research areas
+
+**TONE:** Scholarly, accurate, thorough
+**LENGTH:** 400-650 words'''
+
+        # GENERAL - Professional with examples
+        else:
+            return identity + '''## Your Role: Knowledgeable Assistant
+
+**APPROACH:**
+- Answer directly and thoroughly
+- Include relevant examples
+- Professional tone
+- Add value beyond the basic answer
+
+**RESPONSE STRUCTURE:**
+
+### Direct Answer
+Clear response to the question (1-3 sentences).
+
+### Detailed Explanation
+Thorough coverage of the topic with:
+- Context from the video
+- Key details
+- Important nuances
+
+### Examples
+Always include at least 2 examples:
+
+**Example 1:** [Concrete illustration]
+
+**Example 2:** [Different perspective or application]
+
+### Additional Context
+Relevant information that adds value.
+
+### Key Points
+- Summary point 1
+- Summary point 2
+- Summary point 3
+
+**CALIBRATE LENGTH TO QUESTION:**
+- Simple question: 150-250 words
+- Complex question: 350-550 words
+
+**TONE:** Professional, helpful, informative
+**NO HUMOR** in teaching responses'''
 
         return identity
 
@@ -402,13 +852,13 @@ What you should remember
 # =============================================================================
 
 class VideoDownloader:
-    """Downloads and extracts audio from videos"""
+    """Downloads and extracts audio from videos."""
     
     def __init__(self, output_path: Path):
         self.output_path = output_path
     
     def download(self, url: str, session_id: str) -> Dict[str, Any]:
-        """Download video and extract MP3 audio"""
+        """Download video and extract MP3 audio."""
         try:
             audio_file = self.output_path / f"{session_id}.mp3"
             
@@ -424,27 +874,24 @@ class VideoDownloader:
                 'no_warnings': True,
             }
             
-            # Get video info
-            print("  📥 Fetching video info...")
+            print("  Fetching video information...")
             with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
                 info = ydl.extract_info(url, download=False)
                 title = info.get('title', 'Unknown Video')
                 duration = info.get('duration', 0)
             
-            print(f"  📹 Title: {title[:55]}{'...' if len(title) > 55 else ''}")
-            print(f"  ⏱️  Duration: {duration // 60}m {duration % 60}s")
+            print(f"  Title: {title[:60]}{'...' if len(title) > 60 else ''}")
+            print(f"  Duration: {duration // 60}m {duration % 60}s")
             
-            # Download
-            print("  📥 Downloading audio...")
+            print("  Downloading audio...")
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
             
-            # Convert if needed
             if not audio_file.exists():
                 for ext in ['webm', 'm4a', 'opus', 'ogg', 'wav']:
                     alt = self.output_path / f"{session_id}.{ext}"
                     if alt.exists():
-                        print(f"  🔄 Converting {ext} → MP3...")
+                        print(f"  Converting {ext} to MP3...")
                         import subprocess
                         subprocess.run([
                             'ffmpeg', '-i', str(alt), '-vn',
@@ -455,7 +902,7 @@ class VideoDownloader:
                         break
             
             if audio_file.exists():
-                print(f"  ✅ Audio saved: {audio_file.name}")
+                print(f"  Audio saved: {audio_file.name}")
                 return {
                     'success': True,
                     'audio_path': str(audio_file),
@@ -474,7 +921,7 @@ class VideoDownloader:
 # =============================================================================
 
 class WhisperTranscriber:
-    """Transcribes audio using Whisper"""
+    """Transcribes audio using Whisper."""
     
     def __init__(self):
         self.model = None
@@ -483,17 +930,17 @@ class WhisperTranscriber:
     
     def _load_model(self):
         if self.model is None:
-            print(f"  🔄 Loading Whisper '{WHISPER_MODEL}' model...")
+            print(f"  Loading Whisper '{WHISPER_MODEL}' model...")
             self.model = whisper.load_model(WHISPER_MODEL, device=self.device)
-            print("  ✅ Model loaded")
+            print("  Model loaded successfully")
         return self.model
     
     def transcribe(self, audio_path: str, session_id: str) -> Dict[str, Any]:
-        """Transcribe audio to text"""
+        """Transcribe audio to text."""
         try:
             model = self._load_model()
             
-            print("  🎤 Transcribing...")
+            print("  Transcribing audio...")
             start = time.time()
             
             result = model.transcribe(
@@ -507,12 +954,11 @@ class WhisperTranscriber:
             word_count = len(transcript.split())
             language = result.get('language', 'unknown')
             
-            # Save transcript
             transcript_file = TRANSCRIPT_PATH / f"{session_id}.txt"
             transcript_file.write_text(transcript, encoding='utf-8')
             
-            print(f"  ✅ Transcription complete!")
-            print(f"  📝 Words: {word_count} | Language: {language} | Time: {elapsed:.1f}s")
+            print(f"  Transcription complete")
+            print(f"  Words: {word_count} | Language: {language} | Time: {elapsed:.1f}s")
             
             return {
                 'success': True,
@@ -531,14 +977,14 @@ class WhisperTranscriber:
 # =============================================================================
 
 class TextChunker:
-    """Intelligent text chunking"""
+    """Intelligent text chunking for vector storage."""
     
     def __init__(self, chunk_size: int = 500, overlap: int = 100):
         self.chunk_size = chunk_size
         self.overlap = overlap
     
     def chunk(self, text: str) -> List[Dict[str, Any]]:
-        """Chunk text with overlap"""
+        """Chunk text with overlap."""
         if not text.strip():
             return []
         
@@ -558,7 +1004,6 @@ class TextChunker:
                     'word_count': len(chunk_text.split())
                 })
                 
-                # Overlap
                 overlap_sents = []
                 overlap_len = 0
                 for s in reversed(current):
@@ -585,11 +1030,11 @@ class TextChunker:
 
 
 # =============================================================================
-# VECTOR STORE - WITH PROPER CLEANUP
+# VECTOR STORE
 # =============================================================================
 
 class VectorStore:
-    """ChromaDB vector storage with proper cleanup"""
+    """ChromaDB vector storage."""
     
     def __init__(self, db_path: Path):
         self.db_path = db_path
@@ -598,7 +1043,7 @@ class VectorStore:
         self._init_client()
     
     def _init_client(self):
-        """Initialize ChromaDB client"""
+        """Initialize ChromaDB client."""
         self.client = chromadb.PersistentClient(
             path=str(self.db_path),
             settings=ChromaSettings(
@@ -609,9 +1054,9 @@ class VectorStore:
     
     def _load_embeddings(self):
         if self.embedding_model is None:
-            print("  🔄 Loading embedding model...")
+            print("  Loading embedding model...")
             self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-            print("  ✅ Embeddings ready")
+            print("  Embeddings ready")
         return self.embedding_model
     
     def create_collection(self, session_id: str) -> bool:
@@ -624,7 +1069,7 @@ class VectorStore:
             self.client.create_collection(name=name, metadata={"hnsw:space": "cosine"})
             return True
         except Exception as e:
-            print(f"  ❌ Collection error: {e}")
+            print(f"  Error creating collection: {e}")
             return False
     
     def add_chunks(self, session_id: str, chunks: List[Dict], full_transcript: str) -> bool:
@@ -645,14 +1090,14 @@ class VectorStore:
                     })
             
             if docs:
-                print(f"  🔄 Embedding {len(docs)} chunks...")
+                print(f"  Embedding {len(docs)} chunks...")
                 embeddings = model.encode(docs, show_progress_bar=False).tolist()
                 collection.add(ids=ids, documents=docs, metadatas=metas, embeddings=embeddings)
-                print(f"  ✅ {len(docs)} chunks stored")
+                print(f"  {len(docs)} chunks stored successfully")
             
             return True
         except Exception as e:
-            print(f"  ❌ Storage error: {e}")
+            print(f"  Storage error: {e}")
             return False
     
     def search(self, session_id: str, query: str, full_transcript: str, top_k: int = 5) -> List[Dict]:
@@ -688,69 +1133,57 @@ class VectorStore:
             
             return formatted
         except Exception as e:
-            print(f"  ❌ Search error: {e}")
+            print(f"  Search error: {e}")
             return []
     
     def close_and_cleanup(self):
-        """Properly close and cleanup the database"""
+        """Close and cleanup the database."""
         try:
-            # Clear embedding model
             if self.embedding_model is not None:
                 del self.embedding_model
                 self.embedding_model = None
             
-            # Reset database
             if self.client is not None:
                 try:
                     self.client.reset()
                 except:
                     pass
-                
-                # Clear client reference
                 del self.client
                 self.client = None
             
-            # Force garbage collection
             gc.collect()
-            
-            # Wait for file handles to release
             time.sleep(1)
             
-            # Now delete files
             if self.db_path.exists():
-                # Try to delete chroma.sqlite3
                 sqlite_file = self.db_path / "chroma.sqlite3"
                 for attempt in range(5):
                     if sqlite_file.exists():
                         try:
                             sqlite_file.unlink()
-                            print("  ✅ Deleted chroma.sqlite3")
                             break
                         except:
                             time.sleep(0.5)
                             gc.collect()
                 
-                # Delete UUID folders
                 for item in self.db_path.iterdir():
                     if item.is_dir() and len(item.name) == 36 and item.name.count('-') == 4:
                         try:
                             shutil.rmtree(item)
-                            print(f"  ✅ Deleted: {item.name[:12]}...")
                         except:
                             pass
             
             return True
         except Exception as e:
-            print(f"  ⚠️ Cleanup warning: {e}")
+            print(f"  Cleanup warning: {e}")
             return False
 
 
 # =============================================================================
-# GROQ LLM - FIXED
+# GROQ LLM
 # =============================================================================
 
 class GroqLLM:
-    """Groq LLM interface with intelligent prompting"""
+    """Groq LLM interface."""
     
     def __init__(self):
         self.client = None
@@ -759,52 +1192,91 @@ class GroqLLM:
     def _get_client(self):
         if self.client is None:
             if not GROQ_API_KEY:
-                raise ValueError("GROQ_API_KEY not set in .env file!")
+                raise ValueError("GROQ_API_KEY not set in .env file")
             self.client = Groq(api_key=GROQ_API_KEY)
         return self.client
     
     def generate(self, question: str, context: str, video_title: str,
                  content_type: ContentType, chat_history: List[ChatMessage] = None) -> Dict:
-        """Generate response with appropriate prompting"""
+        """Generate response with appropriate tone."""
         try:
             client = self._get_client()
             
-            # Get appropriate system prompt
             system_prompt = EliteSystemPrompts.get_prompt(video_title, content_type)
             
             # Build user message based on content type
             if content_type == ContentType.GREETING:
-                # Simple message for greetings
-                user_message = f"The user said: {question}"
-            else:
-                # Full context for other types
-                user_message = f'''**Video Transcript Context:**
-{context[:8000]}
+                user_message = f'''The user said: "{question}"
 
----
-
-**User Question:** {question}
-
-Please respond appropriately based on the question type.'''
+Respond with a warm, friendly greeting. Include a light joke or witty observation. Introduce yourself and mention Sangam Gautam (the AI/ML engineer who built you) and Sushil Yadav (frontend design). Keep it brief and inviting!'''
             
-            # Build messages
+            elif content_type == ContentType.SUMMARY:
+                user_message = f'''Please provide a comprehensive summary of this video content.
+
+**Video Transcript:**
+{context[:20000]}
+
+Be thorough, organized, and professional. Include any examples mentioned in the video.'''
+            
+            elif content_type == ContentType.CODING:
+                user_message = f'''**Question:** {question}
+
+**Video Content:**
+{context[:12000]}
+
+Provide a thorough code explanation with MULTIPLE examples (basic, intermediate, advanced). Be serious and educational - no jokes. Focus on teaching the concept properly.'''
+            
+            elif content_type in [ContentType.EXPLANATION, ContentType.DEFINITION, ContentType.HOWTO]:
+                user_message = f'''**Question:** {question}
+
+**Video Content:**
+{context[:12000]}
+
+Provide a thorough, serious explanation with MULTIPLE examples (at least 3). No humor - focus entirely on clear, effective teaching. Examples are critical for understanding.'''
+            
+            else:
+                user_message = f'''**Question:** {question}
+
+**Video Content:**
+{context[:10000]}
+
+Answer thoroughly and professionally. Include relevant examples. Be serious and focused on providing value.'''
+            
             messages = [{"role": "system", "content": system_prompt}]
             
-            # Add history (limited)
-            if chat_history and content_type != ContentType.GREETING:
+            # Add history for context continuity
+            if chat_history and content_type not in [ContentType.GREETING, ContentType.SUMMARY]:
                 for msg in chat_history[-4:]:
-                    content = msg.content[:300] + "..." if len(msg.content) > 300 else msg.content
+                    content = msg.content[:400] + "..." if len(msg.content) > 400 else msg.content
                     messages.append({"role": msg.role, "content": content})
             
             messages.append({"role": "user", "content": user_message})
             
-            # Generate
+            # Token limits by content type
+            max_tokens_map = {
+                ContentType.GREETING: 800,
+                ContentType.SUMMARY: 4096,
+                ContentType.CODING: 4096,
+                ContentType.HOWTO: 3500,
+                ContentType.COMPARISON: 3500,
+                ContentType.EXPLANATION: 3500,
+                ContentType.DEFINITION: 2500,
+                ContentType.MATH: 3000,
+                ContentType.SCIENCE: 3500,
+                ContentType.GENERAL: 2500
+            }
+            
+            max_tokens = max_tokens_map.get(content_type, 2500)
+            
+            # Temperature: higher for greetings, lower for teaching
+            temperature = 0.75 if content_type == ContentType.GREETING else 0.5
+            
             start = time.time()
             response = client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                max_tokens=2048 if content_type in [ContentType.GREETING, ContentType.GENERAL] else 4096,
-                temperature=0.7
+                max_tokens=max_tokens,
+                temperature=temperature
             )
             
             answer = response.choices[0].message.content + CREATOR_FOOTER
@@ -813,7 +1285,8 @@ Please respond appropriately based on the question type.'''
                 'success': True,
                 'answer': answer,
                 'time': round(time.time() - start, 2),
-                'tokens': response.usage.total_tokens if response.usage else 0
+                'tokens': response.usage.total_tokens if response.usage else 0,
+                'content_type': content_type.value
             }
             
         except Exception as e:
@@ -832,16 +1305,16 @@ Please respond appropriately based on the question type.'''
 
 
 # =============================================================================
-# MAIN PIPELINE - CLEAN OUTPUT
+# MAIN PIPELINE
 # =============================================================================
 
 class VectorPlexPipeline:
-    """Main pipeline with clean output"""
+    """Main VectorPlex pipeline."""
     
     def __init__(self):
         print("\n" + "="*60)
-        print("   🚀 VectorPlex V2 - RAG Pipeline")
-        print("   By Sangam Gautam & Sushil Yadav")
+        print("  VectorPlex Demo Model")
+        print("  AI/ML: Sangam Gautam | Frontend: Sushil Yadav")
         print("="*60)
         
         self.downloader = VideoDownloader(AUDIO_PATH)
@@ -852,12 +1325,12 @@ class VectorPlexPipeline:
         
         self.session: Optional[VideoSession] = None
         
-        print(f"\n[Config] Model: {GROQ_MODEL}")
+        print(f"\n[Config] LLM: {GROQ_MODEL}")
         print(f"[Config] Whisper: {WHISPER_MODEL}")
-        print("[Pipeline] Ready!\n")
+        print("[Status] Pipeline ready\n")
     
     def process_video(self, url: str) -> bool:
-        """Process video through complete pipeline"""
+        """Process video through the pipeline."""
         session_id = str(uuid.uuid4())[:8]
         
         self.session = VideoSession(
@@ -866,13 +1339,12 @@ class VectorPlexPipeline:
         )
         
         print(f"\n{'='*60}")
-        print(f"📹 PROCESSING VIDEO")
+        print(f"Processing Video")
         print(f"{'='*60}")
         print(f"Session: {session_id}\n")
         
         try:
-            # Step 1: Download
-            print("📥 STEP 1/4: Download")
+            print("Step 1/4: Download")
             print("-" * 40)
             self.session.status = SessionStatus.DOWNLOADING
             
@@ -885,8 +1357,7 @@ class VectorPlexPipeline:
             self.session.duration = dl['duration']
             print()
             
-            # Step 2: Transcribe
-            print("🎤 STEP 2/4: Transcribe")
+            print("Step 2/4: Transcribe")
             print("-" * 40)
             self.session.status = SessionStatus.TRANSCRIBING
             
@@ -899,18 +1370,16 @@ class VectorPlexPipeline:
             self.session.language = tr['language']
             print()
             
-            # Step 3: Chunk
-            print("✂️  STEP 3/4: Chunk")
+            print("Step 3/4: Chunk")
             print("-" * 40)
             self.session.status = SessionStatus.PROCESSING
             
             chunks = self.chunker.chunk(tr['transcript'])
             self.session.chunk_count = len(chunks)
-            print(f"  ✅ Created {len(chunks)} chunks")
+            print(f"  Created {len(chunks)} chunks")
             print()
             
-            # Step 4: Store
-            print("🗄️  STEP 4/4: Vector Store")
+            print("Step 4/4: Vector Store")
             print("-" * 40)
             
             self.vectorstore.create_collection(session_id)
@@ -920,10 +1389,10 @@ class VectorPlexPipeline:
             self.session.status = SessionStatus.READY
             
             print("="*60)
-            print("✅ READY TO CHAT!")
+            print("Ready for Questions")
             print("="*60)
-            print(f"📹 {self.session.video_title}")
-            print(f"📝 {self.session.word_count} words | {self.session.chunk_count} chunks")
+            print(f"Video: {self.session.video_title}")
+            print(f"Content: {self.session.word_count} words | {self.session.chunk_count} chunks")
             print("="*60 + "\n")
             
             return True
@@ -931,32 +1400,29 @@ class VectorPlexPipeline:
         except Exception as e:
             self.session.status = SessionStatus.ERROR
             self.session.error = str(e)
-            print(f"\n❌ ERROR: {e}\n")
+            print(f"\nError: {e}\n")
             self.cleanup()
             return False
     
     def chat(self, question: str) -> Optional[str]:
-        """Chat with processed video - CLEAN OUTPUT"""
+        """Process a question about the video."""
         if not self.session or self.session.status != SessionStatus.READY:
-            print("❌ No video processed!")
+            print("No video processed yet.")
             return None
         
         try:
-            # Detect content type
             content_type = ContentDetector.detect(question, self.session.transcript[:2000])
             
-            # For greetings, minimal context needed
             if content_type == ContentType.GREETING:
-                context = f"Video title: {self.session.video_title}"
+                context = f"Video: {self.session.video_title}\nWords: {self.session.word_count}"
             elif content_type == ContentType.SUMMARY:
-                context = self.session.transcript[:18000]
+                context = self.session.transcript[:20000]
             else:
-                # Use vector search
                 results = self.vectorstore.search(
                     self.session.session_id,
                     question,
                     self.session.transcript,
-                    top_k=4
+                    top_k=5
                 )
                 
                 if results:
@@ -965,7 +1431,6 @@ class VectorPlexPipeline:
                 else:
                     context = self.session.transcript[:12000]
             
-            # Generate response (no debug output)
             result = self.llm.generate(
                 question=question,
                 context=context,
@@ -975,26 +1440,24 @@ class VectorPlexPipeline:
             )
             
             if not result.get('success'):
-                print(f"❌ Error: {result.get('error')}")
+                print(f"Error: {result.get('error')}")
                 return None
             
-            # Save to history
             self.session.chat_history.append(ChatMessage(role="user", content=question))
             self.session.chat_history.append(ChatMessage(role="assistant", content=result['answer']))
             
             return result['answer']
             
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"Error: {e}")
             return None
     
     def cleanup(self):
-        """Complete cleanup"""
-        print("\n🧹 Cleaning up...")
+        """Clean up resources."""
+        print("\nCleaning up...")
         
         session_id = self.session.session_id if self.session else None
         
-        # Delete audio files
         if session_id:
             for ext in ['mp3', 'webm', 'm4a', 'opus', 'ogg', 'wav', 'mp4']:
                 audio_file = AUDIO_PATH / f"{session_id}.{ext}"
@@ -1003,9 +1466,8 @@ class VectorPlexPipeline:
                         audio_file.unlink()
                     except:
                         pass
-        print("  ✅ Audio cleaned")
+        print("  Audio cleaned")
         
-        # Delete transcripts
         if session_id:
             transcript_file = TRANSCRIPT_PATH / f"{session_id}.txt"
             if transcript_file.exists():
@@ -1013,17 +1475,16 @@ class VectorPlexPipeline:
                     transcript_file.unlink()
                 except:
                     pass
-        print("  ✅ Transcripts cleaned")
+        print("  Transcripts cleaned")
         
-        # Close and cleanup vector store
         self.vectorstore.close_and_cleanup()
-        print("  ✅ Vectors cleaned")
+        print("  Vectors cleaned")
         
         self.session = None
-        print("✅ Cleanup complete!\n")
+        print("Cleanup complete\n")
     
     def get_info(self) -> Dict:
-        """Get session info"""
+        """Get session info."""
         if not self.session:
             return {'active': False}
         return {
@@ -1034,37 +1495,40 @@ class VectorPlexPipeline:
 
 
 # =============================================================================
-# INTERACTIVE CLI - CLEAN OUTPUT
+# INTERACTIVE CLI
 # =============================================================================
 
 def run_cli():
-    """Run interactive CLI with clean output"""
+    """Run interactive CLI."""
     print("\n" + "="*60)
-    print("   🎬 VECTORPLEX V2")
-    print("   By Sangam Gautam & Sushil Yadav")
+    print("  VectorPlex Demo Model")
+    print("  AI/ML: Sangam Gautam | Frontend: Sushil Yadav")
     print("="*60)
-    print("\n1. Enter a video URL")
-    print("2. Ask questions about the video")
-    print("3. Type /quit to exit")
+    print("\nCommands:")
+    print("  - Enter a video URL to process")
+    print("  - Ask questions about the video")
+    print("  - /new - Process a new video")
+    print("  - /info - Show session info")
+    print("  - /quit - Exit")
     print("="*60 + "\n")
     
     if not GROQ_API_KEY:
-        print("❌ GROQ_API_KEY not found in .env!")
+        print("Error: GROQ_API_KEY not found in .env")
         return
     
     pipeline = VectorPlexPipeline()
     
-    print("Testing API...")
+    print("Testing API connection...")
     if pipeline.llm.test_connection():
-        print("✅ API connected!\n")
+        print("API connected successfully\n")
     else:
-        print("❌ API failed!")
+        print("API connection failed")
         return
     
     try:
         while True:
             if not pipeline.session or pipeline.session.status != SessionStatus.READY:
-                url = input("📹 Video URL: ").strip()
+                url = input("Video URL: ").strip()
                 
                 if url.lower() in ['quit', '/quit', 'exit', '/exit', 'q']:
                     break
@@ -1075,8 +1539,7 @@ def run_cli():
                 if not pipeline.process_video(url):
                     continue
             
-            # Chat loop
-            print("\n💬 Ask anything about the video (/quit to exit, /new for new video)\n")
+            print("\nReady for questions (/quit to exit, /new for new video)\n")
             
             while True:
                 try:
@@ -1094,10 +1557,9 @@ def run_cli():
                     
                     if question.lower() in ['/info', 'info']:
                         info = pipeline.get_info()
-                        print(f"\n📊 {info}\n")
+                        print(f"\nSession: {info}\n")
                         continue
                     
-                    # Get response
                     response = pipeline.chat(question)
                     if response:
                         print(f"\n{'─'*60}")
@@ -1108,11 +1570,11 @@ def run_cli():
                     raise KeyboardInterrupt
     
     except KeyboardInterrupt:
-        print("\n\n👋 Goodbye!")
+        print("\n\nExiting...")
     
     finally:
         pipeline.cleanup()
-        print("Thanks for using VectorPlex V2! 🚀\n")
+        print("Thank you for using VectorPlex Demo.\n")
 
 
 # =============================================================================
@@ -1125,40 +1587,42 @@ if __name__ == "__main__":
         
         if arg in ["--help", "-h"]:
             print("""
-VectorPlex V2 - Video Chat Pipeline
+VectorPlex Demo Model
+AI/ML Engineering: Sangam Gautam
+Frontend Design: Sushil Yadav
 
 Usage:
   python pipeline.py              Interactive mode
-  python pipeline.py <url>        Process URL directly
-  python pipeline.py --cleanup    Force cleanup all data
+  python pipeline.py <url>        Process specific URL
+  python pipeline.py --cleanup    Clean all data
   python pipeline.py --help       Show help
             """)
         
         elif arg == "--cleanup":
-            print("\n🧹 Force cleanup...")
+            print("\nForce cleanup...")
             
             for f in AUDIO_PATH.glob("*"):
                 if f.is_file():
                     f.unlink(missing_ok=True)
-            print("  ✅ Audio cleaned")
+            print("  Audio cleaned")
             
             for f in TRANSCRIPT_PATH.glob("*"):
                 if f.is_file():
                     f.unlink(missing_ok=True)
-            print("  ✅ Transcripts cleaned")
+            print("  Transcripts cleaned")
             
             if CHROMA_PATH.exists():
                 shutil.rmtree(CHROMA_PATH, ignore_errors=True)
                 CHROMA_PATH.mkdir(exist_ok=True)
-            print("  ✅ Vectors cleaned")
+            print("  Vectors cleaned")
             
-            print("✅ Done!\n")
+            print("Complete\n")
         
         elif arg.startswith("http"):
             pipeline = VectorPlexPipeline()
             try:
                 if pipeline.process_video(arg):
-                    print("\n💬 Chat (Ctrl+C to exit):\n")
+                    print("\nReady (Ctrl+C to exit)\n")
                     while True:
                         q = input("You: ").strip()
                         if q:
@@ -1170,8 +1634,6 @@ Usage:
             finally:
                 pipeline.cleanup()
         else:
-            print(f"Unknown: {arg}")
+            print(f"Unknown argument: {arg}")
     else:
         run_cli()
-
-
